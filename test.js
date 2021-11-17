@@ -74,6 +74,7 @@ for (let a in x.y().z) { console.log(a) }
 for (let a of x.y().z) { console.log(a) }
 while (x) { console.log(y) }
 while (x.y().z) { console.log(y) }
+const x7 = { y }
 `
 
 function print(t) {
