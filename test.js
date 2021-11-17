@@ -68,6 +68,12 @@ switch (x) {
 }
 (function(){})()
 const f1 = function(){}
+for (let a in x) { console.log(a) }
+for (let a in x.y) { console.log(a) }
+for (let a in x.y().z) { console.log(a) }
+for (let a of x.y().z) { console.log(a) }
+while (x) { console.log(y) }
+while (x.y().z) { console.log(y) }
 `
 
 function print(t) {

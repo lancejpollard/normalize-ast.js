@@ -57,11 +57,70 @@ function normalizeBodyNode(node, scope) {
 
     SwitchStatement() {
       const [swtch, expressions] = normalizeSwitchStatement(node, scope)
+    },
+
+    ForInStatement() {
+      const [forInStatement, expressions] = normalizeForInStatement(node, scope)
+      output.push(...expressions)
+      output.push(forInStatement)
+    },
+
+    ForOfStatement() {
+      const [forOfStatement, expressions] = normalizeForOfStatement(node, scope)
+      output.push(...expressions)
+      output.push(forOfStatement)
+    },
+
+    WhileStatement() {
+      const [whileStatement, expressions] = normalizeWhileStatement(node, scope)
+      output.push(...expressions)
+      output.push(whileStatement)
     }
   }
 
   call(normalizers, node.type)
   return output
+}
+
+function normalizeForInStatement(node, scope) {
+  const output = []
+  const [left, leftExps] = normalizeExpression(node.left, scope)
+  const [right, rightExps] = normalizeExpression(node.right, scope)
+  output.push(...leftExps)
+  output.push(...rightExps)
+  const body = []
+  node.body.body.forEach(bd => {
+    body.push(...normalizeBodyNode(bd, { ...scope }))
+  })
+  const forInStatement = createForInStatement(left, right, body)
+  return [forInStatement, output]
+}
+
+function normalizeForOfStatement(node, scope) {
+  const output = []
+  const [left, leftExps] = normalizeExpression(node.left, scope)
+  const [right, rightExps] = normalizeExpression(node.right, scope)
+  output.push(...leftExps)
+  output.push(...rightExps)
+  const body = []
+  node.body.body.forEach(bd => {
+    body.push(...normalizeBodyNode(bd, { ...scope }))
+  })
+  const forOfStatement = createForOfStatement(left, right, body)
+  return [forOfStatement, output]
+}
+
+function normalizeWhileStatement(node, scope) {
+  const output = []
+  console.log(node)
+  const [test, testExps] = normalizeExpression(node.test, scope)
+  output.push(...testExps)
+  const body = []
+  node.body.body.forEach(bd => {
+    body.push(...normalizeBodyNode(bd, { ...scope }))
+  })
+  const whileStatement = createWhileStatement(test, body)
+  return [whileStatement, output]
 }
 
 function normalizeSwitchStatement(node, scope) {
@@ -242,7 +301,13 @@ function normalizeVariableDeclarator(parent, node, scope) {
         }
       }
 
-      call(normalizeInit, node.init.type)
+      if (node.init) {
+        call(normalizeInit, node.init.type)
+      } else {
+        output.push(createVariableDeclaration(parent.kind, [
+          createVariableDeclarator(node.id)
+        ]))
+      }
     },
 
     ArrayPattern() {
@@ -485,7 +550,11 @@ function normalizeExpression(node, scope) {
     },
 
     FunctionExpression() {
-      output.push(...normalizeFunctionExpression(node))
+      output.push(...normalizeFunctionExpression(node, scope))
+    },
+
+    VariableDeclaration() {
+      output.push(...normalizeVariableDeclaration(node, scope))
     }
   }
 
@@ -650,6 +719,41 @@ function createArrayExpression(elements) {
   return {
     type: 'ArrayExpression',
     elements
+  }
+}
+
+function createForInStatement(left, right, body) {
+  return {
+    type: 'ForInStatement',
+    left,
+    right,
+    body: {
+      type: 'BlockStatement',
+      body
+    }
+  }
+}
+
+function createForOfStatement(left, right, body) {
+  return {
+    type: 'ForOfStatement',
+    left,
+    right,
+    body: {
+      type: 'BlockStatement',
+      body
+    }
+  }
+}
+
+function createWhileStatement(test, body) {
+  return {
+    type: 'WhileStatement',
+    test,
+    body: {
+      type: 'BlockStatement',
+      body
+    }
   }
 }
 

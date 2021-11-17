@@ -32,10 +32,63 @@ function printBodyNode(node) {
     IfStatement() {
       text.push(...printIfStatement(node))
     },
+
+    ForInStatement() {
+      text.push(...printForInStatement(node))
+    },
+
+    ForOfStatement() {
+      text.push(...printForOfStatement(node))
+    },
+
+    WhileStatement() {
+      text.push(...printWhileStatement(node))
+    }
   }
 
   call(printers, node.type)
 
+  return text
+}
+
+function printForInStatement(node) {
+  const text = []
+  const left = printExpression(node.left)
+  const right = printExpression(node.right)
+  text.push(`for (${left} in ${right}) {`)
+  node.body.body.forEach(bd => {
+    printBodyNode(bd).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
+  text.push('}')
+  return text
+}
+
+function printWhileStatement(node) {
+  const text = []
+  const test = printExpression(node.test)
+  text.push(`while (${test}) {`)
+  node.body.body.forEach(bd => {
+    printBodyNode(bd).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
+  text.push('}')
+  return text
+}
+
+function printForOfStatement(node) {
+  const text = []
+  const left = printExpression(node.left)
+  const right = printExpression(node.right)
+  text.push(`for (${left} of ${right}) {`)
+  node.body.body.forEach(bd => {
+    printBodyNode(bd).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
+  text.push('}')
   return text
 }
 
@@ -149,7 +202,6 @@ function printVariableDeclarator(parent, node) {
       text.push(parent.kind)
       text.push(` `)
       text.push(node.id.name)
-      text.push(` = `)
     }
   }
 
@@ -196,7 +248,11 @@ function printVariableDeclarator(parent, node) {
   }
 
   call(printersId, node.id.type)
-  call(printersInit, node.init.type)
+
+  if (node.init) {
+    text.push(` = `)
+    call(printersInit, node.init.type)
+  }
 
   return [text.join('')]
 }
@@ -297,6 +353,10 @@ function printExpression(node) {
 
     FunctionExpression() {
       return printFunctionDeclaration(node).join('\n')
+    },
+
+    VariableDeclaration() {
+      return printVariableDeclaration(node).join('\n')
     }
   }
 
