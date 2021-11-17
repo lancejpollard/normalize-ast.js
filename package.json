@@ -1,4 +1,5 @@
 {
+  "name": "@lancejpollard/normalize-ast.js",
   "dependencies": {
     "acorn": "^8.5.0"
   }
