@@ -14,6 +14,7 @@ const {
   createCallExpression,
   createFunctionDeclaration,
   createFunctionExpression,
+  createArrowFunctionExpression,
   createAssignmentPattern,
   createReturnStatement,
   createIfStatement,
@@ -189,6 +190,56 @@ function normalizeReturnStatement(node, scope) {
   return output
 }
 
+function normalizeArrowFunctionExpression(node, scope) {
+  const output = []
+  const params = []
+  node.params.forEach(param => {
+    const [p, pExpressionStatements] = normalizeFunctionParam(param, scope)
+    output.push(...pExpressionStatements)
+    params.push(p)
+  })
+  const normalizers = {
+    CallExpression() {
+      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      body = createBlockStatement([
+        ...expressions,
+        body
+      ])
+    },
+
+    ArrayExpression() {
+      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      body = createBlockStatement([
+        ...expressions,
+        createReturnStatement(body),
+      ])
+    },
+
+    ObjectExpression() {
+      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      body = createBlockStatement([
+        ...expressions,
+        createReturnStatement(body),
+      ])
+    },
+
+    BlockStatement() {
+      body = []
+      const childScope = { ...scope }
+      node.body.body.forEach(bd => {
+        body.push(...normalizeBodyNode(bd, childScope))
+      })
+      body = createBlockStatement(body)
+    }
+  }
+  let body
+  call(normalizers, node.body.type)
+  return [
+    createArrowFunctionExpression(node.id, params, body),
+    output
+  ]
+}
+
 function normalizeFunctionExpression(node, scope) {
   const output = []
   const params = []
@@ -322,6 +373,40 @@ function normalizeVariableDeclarator(parent, node, scope) {
 
         FunctionExpression() {
           // output.push(...normalizeFunctionExpression(node.init, { ...scope }))
+        },
+
+        MemberExpression() {
+          const [object, objectStatements] = normalizeExpression(node.init.object, scope)
+          const [property, propertyStatements] = normalizeExpression(node.init.property, scope)
+          output.push(...objectStatements)
+          output.push(...propertyStatements)
+          output.push(createVariableDeclaration(parent.kind, [
+            createVariableDeclarator(node.id,
+              createMemberExpression(
+                object,
+                property,
+                node.init.computed
+              )
+            )
+          ]))
+        },
+
+        BinaryExpression() {
+          const [left, leftExpressionStatements] = normalizeExpression(node.init.left, scope)
+          const [right, rightExpressionStatements] = normalizeExpression(node.init.right, scope)
+          output.push(...leftExpressionStatements)
+          output.push(...rightExpressionStatements)
+          output.push(createVariable(parent.kind, node.id, createBinaryExpression(
+            left,
+            node.init.operator,
+            right
+          )))
+        },
+
+        ArrowFunctionExpression() {
+          const [func, expressions] = normalizeArrowFunctionExpression(node.init, scope)
+          output.push(...expressions)
+          output.push(createVariable(parent.kind, node.id, func))
         }
       }
 
@@ -366,6 +451,12 @@ function normalizeVariableDeclarator(parent, node, scope) {
   call(normalizeId, node.id.type)
 
   return output
+}
+
+function createVariable(kind, id, init) {
+  return createVariableDeclaration(kind, [
+    createVariableDeclarator(id, init)
+  ])
 }
 
 function normalizeProperty(node, scope) {

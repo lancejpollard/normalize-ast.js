@@ -43,6 +43,18 @@ function printBodyNode(node) {
 
     WhileStatement() {
       text.push(...printWhileStatement(node))
+    },
+
+    Identifier() {
+      text.push(node.name)
+    },
+
+    ArrayExpression() {
+      text.push(...printArrayExpression(node))
+    },
+
+    ObjectExpression() {
+      text.push(...printObjectExpression(node))
     }
   }
 
@@ -166,6 +178,43 @@ function printReturnStatement(node) {
   return [`return ${argument}`]
 }
 
+function printArrowFunctionExpression(node) {
+  const printers = {
+    CallExpression() {
+      return [
+        printExpression(node.body)
+      ]
+    },
+
+    Identifier() {
+      return [
+        node.body.name
+      ]
+    },
+
+    BlockStatement() {
+      return node.body.body.map(x => printBodyNode(x).join('\n'))
+    },
+
+    ArrayExpression() {
+      return ['return ' + printArrayExpression(node.body).join('\n')]
+    },
+
+    ObjectExpression() {
+      return ['return ' + printObjectExpression(node.body).join('\n')]
+    }
+  }
+  const text = []
+  const params = node.params.map(param => printExpression(param))
+  console.log(node)
+  const body = call(printers, node.body.type)
+    .map(line => `  ${line}`)
+  text.push(`(${params.join(', ')}) => {`)
+  text.push(...body)
+  text.push(`}`)
+  return text
+}
+
 function printFunctionDeclaration(node) {
   const text = []
   const id = node.id ? printExpression(node.id) : ''
@@ -244,6 +293,16 @@ function printVariableDeclarator(parent, node) {
       const consequent = printExpression(node.init.consequent)
       const alternate = printExpression(node.init.alternate)
       text.push(`${test} ? ${consequent} : ${alternate}`)
+    },
+
+    BinaryExpression() {
+      const left = printExpression(node.init.left)
+      const right = printExpression(node.init.right)
+      text.push(`${left} ${node.init.operator} ${right}`)
+    },
+
+    ArrowFunctionExpression() {
+      text.push(printArrowFunctionExpression(node.init).join('\n'))
     }
   }
 

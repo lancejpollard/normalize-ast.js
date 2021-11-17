@@ -12,6 +12,7 @@ module.exports = {
   createCallExpression,
   createFunctionDeclaration,
   createFunctionExpression,
+  createArrowFunctionExpression,
   createAssignmentPattern,
   createReturnStatement,
   createIfStatement,
@@ -215,5 +216,14 @@ function createWhileStatement(test, body) {
       type: 'BlockStatement',
       body
     }
+  }
+}
+
+function createArrowFunctionExpression(id, params, body) {
+  return {
+    type: 'ArrowFunctionExpression',
+    id,
+    params,
+    body
   }
 }

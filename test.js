@@ -75,6 +75,21 @@ for (let a of x.y().z) { console.log(a) }
 while (x) { console.log(y) }
 while (x.y().z) { console.log(y) }
 const x7 = { y }
+const a12 = b.c
+const a13 = b[c]
+const a14 = 1 + 2
+const a15 = y().z + z().y
+const a16 = () => console.log('asdf')
+const a17 = () => {
+  console.log('asdf')
+}
+const a18 = () => {
+  if (x) { y() }
+}
+const a19 = () => []
+const a20 = () => ({})
+const a21 = () => ({ foo: 'bar' })
+const a22 = () => ({ foo: y().z })
 `
 
 function print(t) {
