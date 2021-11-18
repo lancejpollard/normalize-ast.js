@@ -5,6 +5,7 @@ module.exports = {
   createBinaryExpression,
   createLogicalExpression,
   createIdentifier,
+  createLiteral,
   createExpressionStatement,
   createVariableDeclaration,
   createVariableDeclarator,
@@ -22,7 +23,8 @@ module.exports = {
   createArrayExpression,
   createForInStatement,
   createForOfStatement,
-  createWhileStatement
+  createWhileStatement,
+  createLabeledStatement
 }
 
 function createMemberExpression(object, property, computed = false) {
@@ -88,6 +90,14 @@ function createVariableDeclarator(id, init) {
     type: 'VariableDeclarator',
     id,
     init
+  }
+}
+
+function createLiteral(value) {
+  return {
+    type: 'Literal',
+    value,
+    raw: typeof value === 'string' ? `'${value}'` : String(value)
   }
 }
 
@@ -224,6 +234,14 @@ function createArrowFunctionExpression(id, params, body) {
     type: 'ArrowFunctionExpression',
     id,
     params,
+    body
+  }
+}
+
+function createLabeledStatement(label, body) {
+  return {
+    type: 'LabeledStatement',
+    label,
     body
   }
 }

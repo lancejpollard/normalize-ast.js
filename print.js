@@ -59,12 +59,57 @@ function printBodyNode(node) {
 
     ClassDeclaration() {
       text.push(...printClassDeclaration(node))
+    },
+
+    BreakStatement() {
+      text.push('break')
+    },
+
+    LabeledStatement() {
+      text.push(...printLabeledStatement(node))
+    },
+
+    BlockStatement() {
+      text.push(...printBlockStatement(node))
+    },
+
+    UpdateExpression() {
+      text.push(...printUpdateExpression(node))
     }
   }
 
   call(printers, node.type)
 
   return text
+}
+
+function printUpdateExpression(node) {
+  const text = []
+  const argument = printExpression(node.argument)
+  if (node.prefix) {
+    text.push(`${node.operator}${argument}`)
+  } else {
+    text.push(`${argument}${node.operator}`)
+  }
+  return text
+}
+
+function printBlockStatement(node) {
+  const text = []
+  text.push('{')
+  node.body.forEach(bd => {
+    printBodyNode(bd).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
+  text.push('}')
+  return text
+}
+
+function printLabeledStatement(node) {
+  const label = printExpression(node.label)
+  const body = printBodyNode(node.body)
+  return [`${label}:`, ...body]
 }
 
 function printClassDeclaration(node) {

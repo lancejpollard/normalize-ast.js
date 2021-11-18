@@ -72,8 +72,6 @@ for (let a in x) { console.log(a) }
 for (let a in x.y) { console.log(a) }
 for (let a in x.y().z) { console.log(a) }
 for (let a of x.y().z) { console.log(a) }
-while (x) { console.log(y) }
-while (x.y().z) { console.log(y) }
 const x7 = { y }
 const a12 = b.c
 const a13 = b[c]
@@ -131,6 +129,21 @@ a[0](x => x().y + 1)
 a(x + b)()
 let x100, y100 = 10
 // const x101 = \`\`
+while (x) { break }
+while (x) { console.log(y) }
+w2:
+while (x.y().z) { console.log(y) }
+{
+  const a = b.x
+}
+b3:
+{
+  const b4 = b().x
+}
+const b80 = b().x
+for (let i = 0; i < array.length; i++) {
+  console.log(i)
+}
 `
 
 function print(t) {

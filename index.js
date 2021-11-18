@@ -7,6 +7,7 @@ const {
   createBinaryExpression,
   createLogicalExpression,
   createIdentifier,
+  createLiteral,
   createExpressionStatement,
   createVariableDeclaration,
   createVariableDeclarator,
@@ -24,7 +25,8 @@ const {
   createArrayExpression,
   createForInStatement,
   createForOfStatement,
-  createWhileStatement
+  createWhileStatement,
+  createLabeledStatement
 } = require('./create')
 
 module.exports = {
@@ -106,11 +108,70 @@ function normalizeBodyNode(node, scope) {
       const [clss, expressions] = normalizeClassDeclaration(node, scope)
       output.push(...expressions)
       output.push(clss)
+    },
+
+    BreakStatement() {
+      output.push(node)
+    },
+
+    LabeledStatement() {
+      const [body] = normalizeBodyNode(node.body, scope)
+      const [label] = normalizeExpression(node.label, scope)
+      output.push(createLabeledStatement(label, body))
+    },
+
+    ForStatement() {
+      const blockStatement = normalizeForStatement(node, scope)
+      output.push(blockStatement)
+    },
+
+    BlockStatement() {
+      output.push(normalizeBlockStatement(node, scope))
     }
   }
 
   call(normalizers, node.type)
   return output
+}
+
+function normalizeBlockStatement(node, scope) {
+  const childScope = { ...scope }
+  const body = []
+  node.body.forEach(bd => {
+    body.push(...normalizeBodyNode(bd, childScope))
+  })
+  return createBlockStatement(body)
+}
+
+function normalizeForStatement(node, scope) {
+  const childScope = { ...scope }
+  const initExps = normalizeBodyNode(node.init, childScope)
+  const [test, testExps] = normalizeExpression(node.test, childScope)
+  const [update, updateExps] = normalizeExpression(node.update, childScope)
+  const body = []
+  node.body.body.forEach(bd => {
+    body.push(...normalizeBodyNode(bd, childScope))
+  })
+  const block = createBlockStatement([
+    ...initExps,
+    createWhileStatement(
+      createLiteral(true),
+      [
+        ...testExps,
+        createIfStatement(test,
+          createBlockStatement([
+            ...body,
+            ...updateExps,
+            update
+          ]),
+          createBlockStatement([
+            createBreakStatement()
+          ])
+        )
+      ]
+    )
+  ])
+  return block
 }
 
 function normalizeClassDeclaration(node, scope) {
@@ -191,16 +252,22 @@ function normalizeForOfStatement(node, scope) {
   return [forOfStatement, output]
 }
 
+function createBreakStatement(label) {
+  return {
+    type: 'BreakStatement',
+    label
+  }
+}
+
 function normalizeWhileStatement(node, scope) {
-  const output = []
   const [test, testExps] = normalizeExpression(node.test, scope)
-  output.push(...testExps)
   const body = []
   node.body.body.forEach(bd => {
     body.push(...normalizeBodyNode(bd, { ...scope }))
   })
-  const whileStatement = createWhileStatement(test, body)
-  return [whileStatement, output]
+  const newBody = [...testExps, createIfStatement(test, createBlockStatement(body), createBlockStatement([createBreakStatement()]))]
+  const whileStatement = createWhileStatement(createLiteral(true), newBody)
+  return [whileStatement, []]
 }
 
 function normalizeSwitchStatement(node, scope) {
@@ -835,12 +902,35 @@ function normalizeExpression(node, scope) {
       const [arrow, arrowExps] = normalizeArrowFunctionExpression(node, scope)
       expressionStatements.push(...arrowExps)
       output.push(arrow)
+    },
+
+    UpdateExpression() {
+      const [update, updateExps] = normalizeUpdateExpression(node, scope)
+      expressionStatements.push(...updateExps)
+      output.push(update)
     }
   }
 
   call(normalizers, node.type)
   output.push(expressionStatements)
   return output
+}
+
+function normalizeUpdateExpression(node, scope) {
+  const [argument, argumentExps] = normalizeExpression(node.argument, scope)
+  return [
+    createUpdateExpression(argument, node.operator, node.prefix),
+    argumentExps
+  ]
+}
+
+function createUpdateExpression(argument, operator, prefix) {
+  return {
+    type: 'UpdateExpression',
+    argument,
+    operator,
+    prefix
+  }
 }
 
 function call(obj, method, ...args) {
