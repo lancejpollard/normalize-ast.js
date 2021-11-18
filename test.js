@@ -90,6 +90,47 @@ const a19 = () => []
 const a20 = () => ({})
 const a21 = () => ({ foo: 'bar' })
 const a22 = () => ({ foo: y().z })
+const a23 = new X
+const a24 = new X(1, a())
+new X(1)
+new A.X(g(h(i)))
+function a25() {
+  function b() {
+    console.log('c')
+  }
+}
+const x11 = {
+  foo() {
+    console.log(g().x)
+  },
+  bar() {
+    console.log(g().x)
+  }
+}
+class W {
+  a(x, y) {
+    return w()[x] + y
+  }
+}
+
+function print(t) {
+  console.log(n.print(n.normalize(n.parse(t[0]))))
+}
+
+this.a
+const x12 = this.a
+const x13 = this[a]
+const x14 = { ...a }
+const x15 = { ...x().a, foo: { ...bar() } }
+const x16 = [ ...a ]
+const x17 = [ [ ...a().y, { ...x().z } ] ]
+function x18(...m) { console.log(m) }
+function x19(a = 1, ...w) { console.log(w) }
+a.forEach(x => x + 1)
+a[0](x => x().y + 1)
+a(x + b)()
+let x100, y100 = 10
+// const x101 = \`\`
 `
 
 function print(t) {

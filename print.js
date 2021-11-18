@@ -55,11 +55,47 @@ function printBodyNode(node) {
 
     ObjectExpression() {
       text.push(...printObjectExpression(node))
+    },
+
+    ClassDeclaration() {
+      text.push(...printClassDeclaration(node))
     }
   }
 
   call(printers, node.type)
 
+  return text
+}
+
+function printClassDeclaration(node) {
+  const text = []
+  const id = printExpression(node.id)
+  const superClass = null
+  if (superClass) {
+
+  } else {
+    text.push(`class ${id} {`)
+  }
+  printClassBody(node.body).forEach(line => {
+    text.push(`  ${line}`)
+  })
+  text.push('}')
+  return text
+}
+
+function printClassBody(node) {
+  const text = []
+  node.body.forEach(bd => {
+    text.push(...printMethodDefinition(bd))
+  })
+  return text
+}
+
+function printMethodDefinition(node) {
+  const key = printExpression(node.key)
+  const value = printFunctionDeclaration(node.value)
+  const text = [`${key}: `]
+  text.push(value.join('\n'))
   return text
 }
 
@@ -139,9 +175,22 @@ function printArrayExpression(node) {
 }
 
 function printProperty(node) {
+  if (node.type === 'SpreadElement') {
+    return printSpreadElement(node)
+  }
   const key = printExpression(node.key)
   const value = printExpression(node.value)
   return [`${key}: ${value}`]
+}
+
+function printRestElement(node) {
+  const argument = printExpression(node.argument)
+  return [`...${argument}`]
+}
+
+function printSpreadElement(node) {
+  const argument = printExpression(node.argument)
+  return [`...${argument}`]
 }
 
 function printIfStatement(node) {
@@ -206,7 +255,6 @@ function printArrowFunctionExpression(node) {
   }
   const text = []
   const params = node.params.map(param => printExpression(param))
-  console.log(node)
   const body = call(printers, node.body.type)
     .map(line => `  ${line}`)
   text.push(`(${params.join(', ')}) => {`)
@@ -219,7 +267,7 @@ function printFunctionDeclaration(node) {
   const text = []
   const id = node.id ? printExpression(node.id) : ''
   const params = node.params.map(param => printExpression(param))
-  const body = node.body.body.map(x => printBodyNode(x))
+  const body = node.body.body.map(x => printBodyNode(x).join('\n'))
     .map(line => `  ${line}`)
   text.push(`function ${id}(${params.join(', ')}) {`)
   text.push(...body)
@@ -303,6 +351,10 @@ function printVariableDeclarator(parent, node) {
 
     ArrowFunctionExpression() {
       text.push(printArrowFunctionExpression(node.init).join('\n'))
+    },
+
+    NewExpression() {
+      text.push(printNewExpression(node.init).join('\n'))
     }
   }
 
@@ -314,6 +366,14 @@ function printVariableDeclarator(parent, node) {
   }
 
   return [text.join('')]
+}
+
+function printNewExpression(node) {
+  const text = []
+  const ctor = printExpression(node.callee)
+  const args = node.arguments.map(arg => printExpression(arg))
+  text.push(`new ${ctor}(${args.join(', ')})`)
+  return text
 }
 
 function printExpressionStatement(node) {
@@ -344,6 +404,10 @@ function printExpressionStatement(node) {
       const args = node.expression.arguments.map(arg => printExpression(arg))
       text.push(`${_callee}(${args.join(', ')})`)
     },
+
+    NewExpression() {
+      text.push(printNewExpression(node.expression).join('\n'))
+    }
   }
 
   call(printers, node.expression.type)
@@ -416,6 +480,22 @@ function printExpression(node) {
 
     VariableDeclaration() {
       return printVariableDeclaration(node).join('\n')
+    },
+
+    ThisExpression() {
+      return 'this'
+    },
+
+    SpreadElement() {
+      return printSpreadElement(node).join('\n')
+    },
+
+    RestElement() {
+      return printRestElement(node).join('\n')
+    },
+
+    ArrowFunctionExpression() {
+      return printArrowFunctionExpression(node).join('\n')
     }
   }
 
