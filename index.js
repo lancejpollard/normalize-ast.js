@@ -127,11 +127,37 @@ function normalizeBodyNode(node, scope) {
 
     BlockStatement() {
       output.push(normalizeBlockStatement(node, scope))
+    },
+
+    AssignmentExpression() {
+      const [assign, expressions] = normalizeAssignmentExpression(node, scope)
+      output.push(...expressions)
+      output.push(assign)
+    },
+
+    ExportNamedDeclaration() {
+      const [exp, expressions] = normalizeExportNamedDeclaration(node, scope)
+      output.push(...expressions)
+      output.push(exp)
     }
   }
 
   call(normalizers, node.type)
   return output
+}
+
+function normalizeExportNamedDeclaration(node, scope) {
+  const declaration = normalizeBodyNode(node.declaration, scope)
+  const specifiers = []
+}
+
+function normalizeAssignmentExpression(node, scope) {
+  const [left, leftExps] = normalizeExpression(node.left, scope)
+  const [right, rightExps] = normalizeExpression(node.right, scope)
+  return [
+    createAssignmentExpression(left, right, node.operator),
+    [...leftExps, ...rightExps]
+  ]
 }
 
 function normalizeBlockStatement(node, scope) {
@@ -145,13 +171,30 @@ function normalizeBlockStatement(node, scope) {
 
 function normalizeForStatement(node, scope) {
   const childScope = { ...scope }
-  const initExps = normalizeBodyNode(node.init, childScope)
-  const [test, testExps] = normalizeExpression(node.test, childScope)
+  let initExps
+  if (node.init) {
+    initExps = normalizeBodyNode(node.init, childScope)
+  } else {
+    initExps = []
+  }
+  let test, testExps = []
+  if (node.test) {
+    [test, testExps] = normalizeExpression(node.test, childScope, true)
+  }
   const [update, updateExps] = normalizeExpression(node.update, childScope)
   const body = []
-  node.body.body.forEach(bd => {
-    body.push(...normalizeBodyNode(bd, childScope))
-  })
+  const normalizers = {
+    BlockStatement() {
+      node.body.body.forEach(bd => {
+        body.push(...normalizeBodyNode(bd, childScope))
+      })
+    },
+
+    ExpressionStatement() {
+      body.push(...normalizeBodyNode(node.body, childScope))
+    }
+  }
+  call(normalizers, node.body.type)
   const block = createBlockStatement([
     ...initExps,
     createWhileStatement(
@@ -231,9 +274,13 @@ function normalizeForInStatement(node, scope) {
   output.push(...leftExps)
   output.push(...rightExps)
   const body = []
-  node.body.body.forEach(bd => {
-    body.push(...normalizeBodyNode(bd, { ...scope }))
-  })
+  if (node.body.type === 'BlockStatement') {
+    node.body.body.forEach(bd => {
+      body.push(...normalizeBodyNode(bd, { ...scope }))
+    })
+  } else {
+    body.push(...normalizeBodyNode(node.body, { ...scope }))
+  }
   const forInStatement = createForInStatement(left, right, body)
   return [forInStatement, output]
 }
@@ -260,7 +307,7 @@ function createBreakStatement(label) {
 }
 
 function normalizeWhileStatement(node, scope) {
-  const [test, testExps] = normalizeExpression(node.test, scope)
+  const [test, testExps] = normalizeExpression(node.test, scope, true)
   const body = []
   node.body.body.forEach(bd => {
     body.push(...normalizeBodyNode(bd, { ...scope }))
@@ -277,13 +324,17 @@ function normalizeSwitchStatement(node, scope) {
 
 function normalizeIfStatement(node, scope) {
   const top = []
-  const [test, testExpressionStatements] = normalizeExpression(node.test, scope)
+  const [test, testExpressionStatements] = normalizeExpression(node.test, scope, true)
   top.push(...testExpressionStatements)
   let consequent = []
-  node.consequent.body.forEach(statement => {
-    const cons = normalizeBodyNode(statement, { ...scope })
-    consequent.push(...cons)
-  })
+  if (node.consequent.type === 'BlockStatement') {
+    node.consequent.body.forEach(statement => {
+      const cons = normalizeBodyNode(statement, { ...scope })
+      consequent.push(...cons)
+    })
+  } else {
+    consequent.push(...normalizeExpressionStatement(node.consequent, { ...scope }))
+  }
   consequent = createBlockStatement(consequent)
   let alternate = null
   if (node.alternate) {
@@ -306,7 +357,7 @@ function normalizeIfStatement(node, scope) {
 
 function normalizeReturnStatement(node, scope) {
   const output = []
-  const [arg, expressionStatements] = normalizeExpression(node.argument, scope)
+  const [arg, expressionStatements] = normalizeExpression(node.argument, scope, true)
   output.push(...expressionStatements)
   output.push(createReturnStatement(arg))
   return output
@@ -322,7 +373,7 @@ function normalizeArrowFunctionExpression(node, scope) {
   })
   const normalizers = {
     CallExpression() {
-      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      [body, expressions] = normalizeExpression(node.body, { ...scope }, true);
       body = createBlockStatement([
         ...expressions,
         body
@@ -544,8 +595,8 @@ function normalizeVariableDeclarator(parent, node, scope) {
         },
 
         BinaryExpression() {
-          const [left, leftExpressionStatements] = normalizeExpression(node.init.left, scope)
-          const [right, rightExpressionStatements] = normalizeExpression(node.init.right, scope)
+          const [left, leftExpressionStatements] = normalizeExpression(node.init.left, scope, true)
+          const [right, rightExpressionStatements] = normalizeExpression(node.init.right, scope, true)
           output.push(...leftExpressionStatements)
           output.push(...rightExpressionStatements)
           output.push(createVariable(parent.kind, node.id, createBinaryExpression(
@@ -565,6 +616,49 @@ function normalizeVariableDeclarator(parent, node, scope) {
           const [ctor, expressions] = normalizeNewExpression(node.init, scope)
           output.push(...expressions)
           output.push(createVariable(parent.kind, node.id, ctor))
+        },
+
+        CallExpression() {
+          const [_callee, calleeStatements] = normalizeExpression(node.init.callee, scope)
+          const args = []
+          node.init.arguments.forEach(arg => {
+            const [argument, argumentStatements] = normalizeExpression(arg, scope, true)
+            output.push(...argumentStatements)
+            args.push(argument)
+          })
+          output.push(...calleeStatements)
+          output.push(createVariable(parent.kind, node.id,
+            createCallExpression(_callee, args)
+          ))
+        },
+
+        TemplateLiteral() {
+          const [template, expressions] = normalizeTemplateLiteral(node.init, scope)
+          output.push(...expressions)
+          output.push(createVariable(parent.kind, node.id, template))
+        },
+
+        TaggedTemplateExpression() {
+          const [template, expressions] = normalizeTaggedTemplateExpression(node.init, scope)
+          output.push(...expressions)
+          output.push(createVariable(parent.kind, node.id, template))
+        },
+
+        UnaryExpression() {
+          const [update, updateExps] = normalizeUnaryExpression(node.init, scope, true)
+          output.push(...updateExps)
+          // if (isolate) {
+          //   const name = `tmp${scope.index++}`
+          //   output.push(
+          //     createVariable('const',
+          //       createIdentifier(name),
+          //       update
+          //     )
+          //   )
+          //   output.push(createVariable(parent.kind, node.id, createIdentifier(name)))
+          // } else {
+            output.push(createVariable(parent.kind, node.id, update))
+          // }
         }
       }
 
@@ -575,6 +669,10 @@ function normalizeVariableDeclarator(parent, node, scope) {
           createVariableDeclarator(node.id)
         ]))
       }
+    },
+
+    ObjectPattern() {
+      throw new Error('todo')
     },
 
     ArrayPattern() {
@@ -625,6 +723,53 @@ function normalizeVariableDeclarator(parent, node, scope) {
   return output
 }
 
+function normalizeTaggedTemplateExpression(node, scope) {
+  const [tag, tagExps] = normalizeExpression(node.tag, scope)
+  const [template, templateExps] = normalizeTemplateLiteral(node.quasi, scope)
+  return [
+    createTaggedTemplateExpression(tag, template),
+    [...templateExps, ...tagExps]
+  ]
+}
+
+function createTaggedTemplateExpression(tag, quasi) {
+  return {
+    type: 'TaggedTemplateExpression',
+    tag,
+    quasi
+  }
+}
+
+function normalizeTemplateLiteral(node, scope) {
+  const quasis = []
+  const expressions = []
+  const exps = []
+  node.expressions.forEach(expression => {
+    const [exp, expExps] = normalizeExpression(expression, scope)
+    expressions.push(exp)
+    exps.push(...expExps)
+  })
+  node.quasis.forEach(q => {
+    quasis.push(normalizeTemplateElement(q, scope))
+  })
+  return [
+    createTemplateLiteral(expressions, quasis),
+    exps
+  ]
+}
+
+function normalizeTemplateElement(node, scope) {
+  return node
+}
+
+function createTemplateLiteral(expressions, quasis) {
+  return {
+    type: 'TemplateLiteral',
+    expressions,
+    quasis
+  }
+}
+
 function createVariable(kind, id, init) {
   return createVariableDeclaration(kind, [
     createVariableDeclarator(id, init)
@@ -636,7 +781,7 @@ function normalizeNewExpression(node, scope) {
   const argExps = []
   const args = []
   node.arguments.forEach(arg => {
-    const [argument, argumentExps] = normalizeExpression(arg, { ...scope })
+    const [argument, argumentExps] = normalizeExpression(arg, { ...scope }, true)
     args.push(argument)
     argExps.push(...argumentExps)
   })
@@ -731,7 +876,7 @@ function normalizeExpressionStatement(node, scope) {
       const [_callee, calleeStatements] = normalizeExpression(node.callee, scope)
       const args = []
       node.arguments.forEach(arg => {
-        const [argument, argumentStatements] = normalizeExpression(arg, scope)
+        const [argument, argumentStatements] = normalizeExpression(arg, scope, true)
         output.push(...argumentStatements)
         args.push(argument)
       })
@@ -749,13 +894,63 @@ function normalizeExpressionStatement(node, scope) {
       const [ctor, expressions] = normalizeNewExpression(node, scope)
       output.push(...expressions)
       output.push(createExpressionStatement(ctor))
+    },
+
+    TaggedTemplateExpression() {
+      const [template, expressions] = normalizeTaggedTemplateExpression(node, scope)
+      output.push(...expressions)
+      output.push(createExpressionStatement(template))
+    },
+
+    SequenceExpression() {
+      const expressions = normalizeSequenceExpression(node, scope)
+      output.push(...expressions)
+    },
+
+    ReturnStatement() {
+      output.push(...normalizeReturnStatement(node, scope))
+    },
+
+    Literal() {
+      output.push(node)
+    },
+
+    ThrowStatement() {
+      const [thrw, expressions] = normalizeThrowStatement(node, scope)
+      output.push(...expressions)
+      output.push(createExpressionStatement(thrw))
     }
   }
   call(normalizers, node.type)
   return output
 }
 
-function normalizeExpression(node, scope) {
+function normalizeThrowStatement(node, scope) {
+  const [argument, argumentExps] = normalizeExpression(node.argument, scope)
+  return [
+    createThrowStatement(argument),
+    argumentExps
+  ]
+}
+
+function createThrowStatement(argument) {
+  return {
+    type: 'ThrowStatement',
+    argument
+  }
+}
+
+function normalizeSequenceExpression(node, scope) {
+  const expressions = []
+  // this just flattens the list and gets rid of the node type
+  // in the normalized output
+  node.expressions.forEach(exp => {
+    expressions.push(...normalizeExpressionStatement(exp, scope))
+  })
+  return expressions
+}
+
+function normalizeExpression(node, scope, isolate = false) {
   const expressionStatements = []
   const output = []
   const normalizers = {
@@ -764,8 +959,8 @@ function normalizeExpression(node, scope) {
     },
 
     MemberExpression() {
-      const [object, objectStatements] = normalizeExpression(node.object, scope)
-      const [property, propertyStatements] = normalizeExpression(node.property, scope)
+      const [object, objectStatements] = normalizeExpression(node.object, scope, isolate)
+      const [property, propertyStatements] = normalizeExpression(node.property, scope, isolate)
       expressionStatements.push(...objectStatements)
       expressionStatements.push(...propertyStatements)
       output.push(createMemberExpression(
@@ -776,10 +971,10 @@ function normalizeExpression(node, scope) {
     },
 
     CallExpression() {
-      const [_callee, calleeStatements] = normalizeExpression(node.callee, scope)
+      const [_callee, calleeStatements] = normalizeExpression(node.callee, scope, isolate)
       const args = []
       node.arguments.forEach(arg => {
-        const [argument, argumentStatements] = normalizeExpression(arg, scope)
+        const [argument, argumentStatements] = normalizeExpression(arg, scope, true)
         expressionStatements.push(...argumentStatements)
         args.push(argument)
       })
@@ -797,45 +992,83 @@ function normalizeExpression(node, scope) {
     },
 
     LogicalExpression() {
-      const [left, leftExpressionStatements] = normalizeExpression(node.left, scope)
-      const [right, rightExpressionStatements] = normalizeExpression(node.right, scope)
+      const [left, leftExpressionStatements] = normalizeExpression(node.left, scope, true)
+      const [right, rightExpressionStatements] = normalizeExpression(node.right, scope, true)
       expressionStatements.push(...leftExpressionStatements)
       expressionStatements.push(...rightExpressionStatements)
-      output.push(createLogicalExpression(
+      const logicalExp = createLogicalExpression(
         left,
         node.operator,
         right
-      ))
+      )
+      if (isolate) {
+        const name = `tmp${scope.index++}`
+        expressionStatements.push(
+          createVariable('const',
+            createIdentifier(name),
+            logicalExp
+          )
+        )
+        output.push(createIdentifier(name))
+      } else {
+        output.push(logicalExp)
+      }
     },
 
     BinaryExpression() {
-      const [left, leftExpressionStatements] = normalizeExpression(node.left, scope)
-      const [right, rightExpressionStatements] = normalizeExpression(node.right, scope)
+      const [left, leftExpressionStatements] = normalizeExpression(node.left, scope, true)
+      const [right, rightExpressionStatements] = normalizeExpression(node.right, scope, true)
       expressionStatements.push(...leftExpressionStatements)
       expressionStatements.push(...rightExpressionStatements)
-      output.push(createBinaryExpression(
+      const binary = createBinaryExpression(
         left,
         node.operator,
         right
-      ))
+      )
+      if (isolate) {
+        const name = `tmp${scope.index++}`
+        expressionStatements.push(
+          createVariable('const',
+            createIdentifier(name),
+            binary
+          )
+        )
+        output.push(createIdentifier(name))
+      } else {
+        output.push(binary)
+      }
     },
 
     ConditionalExpression() {
-      const [test, testExpressionStatements] = normalizeExpression(node.test, scope)
-      const [consequent, consequentExpressionStatements] = normalizeExpression(node.consequent, scope)
-      const [alternate, alternateExpressionStatements] = normalizeExpression(node.alternate, scope)
+      const [test, testExpressionStatements] = normalizeExpression(node.test, scope, true)
+      const [consequent, consequentExpressionStatements] = normalizeExpression(node.consequent, scope, true)
+      const [alternate, alternateExpressionStatements] = normalizeExpression(node.alternate, scope, true)
       expressionStatements.push(...testExpressionStatements)
       expressionStatements.push(...consequentExpressionStatements)
       expressionStatements.push(...alternateExpressionStatements)
-      output.push(createConditionalExpression(
+      const conditional = createConditionalExpression(
         test,
         consequent,
         alternate
-      ))
+      )
+      if (isolate) {
+        const name = `tmp${scope.index++}`
+        expressionStatements.push(
+          createVariable('const',
+            createIdentifier(name),
+            conditional
+          )
+        )
+        output.push(createIdentifier(name))
+      } else {
+        output.push(conditional)
+      }
     },
 
     AssignmentExpression() {
-      console.log(node)
+      const [assign, expressions] = normalizeAssignmentExpression(node, scope)
+      expressionStatements.push(...expressions)
+      output.push(assign)
     },
 
     ArrayPattern() {
@@ -859,7 +1092,19 @@ function normalizeExpression(node, scope) {
         array.push(el)
         expressionStatements.push(...elExpressionStatements)
       })
-      output.push(createObjectExpression(array))
+      const objectExp = createObjectExpression(array)
+      if (isolate) {
+        const name = `tmp${scope.index++}`
+        expressionStatements.push(
+          createVariable('const',
+            createIdentifier(name),
+            objectExp
+          )
+        )
+        output.push(createIdentifier(name))
+      } else {
+        output.push(objectExp)
+      }
     },
 
     Property() {
@@ -908,12 +1153,52 @@ function normalizeExpression(node, scope) {
       const [update, updateExps] = normalizeUpdateExpression(node, scope)
       expressionStatements.push(...updateExps)
       output.push(update)
+    },
+
+    UnaryExpression() {
+      const [update, updateExps] = normalizeUnaryExpression(node, scope, isolate)
+      expressionStatements.push(...updateExps)
+      if (isolate) {
+        const name = `tmp${scope.index++}`
+        expressionStatements.push(
+          createVariable('const',
+            createIdentifier(name),
+            update
+          )
+        )
+        output.push(createIdentifier(name))
+      } else {
+        output.push(update)
+      }
+    },
+
+    NewExpression() {
+      const [ctor, expressions] = normalizeNewExpression(node, scope)
+      expressionStatements.push(...expressions)
+      output.push(ctor)
     }
   }
 
   call(normalizers, node.type)
   output.push(expressionStatements)
   return output
+}
+
+function normalizeUnaryExpression(node, scope, isolate) {
+  const [argument, argumentExps] = normalizeExpression(node.argument, scope, isolate)
+  return [
+    createUnaryExpression(argument, node.operator, node.prefix),
+    argumentExps
+  ]
+}
+
+function createUnaryExpression(argument, operator, prefix) {
+  return {
+    type: 'UnaryExpression',
+    argument,
+    operator,
+    prefix
+  }
 }
 
 function normalizeUpdateExpression(node, scope) {

@@ -101,11 +101,12 @@ function createLiteral(value) {
   }
 }
 
-function createAssignmentExpression(left, right) {
+function createAssignmentExpression(left, right, operator = '=') {
   return {
     type: 'AssignmentExpression',
     left,
-    right
+    right,
+    operator
   }
 }
 

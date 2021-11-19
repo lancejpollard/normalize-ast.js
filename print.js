@@ -75,11 +75,46 @@ function printBodyNode(node) {
 
     UpdateExpression() {
       text.push(...printUpdateExpression(node))
+    },
+
+    AssignmentExpression() {
+      text.push(...printAssignmentExpression(node))
+    },
+
+    TemplateLiteral() {
+      text.push(...printTemplateLiteral(node))
+    },
+
+    Literal() {
+      text.push(node.raw)
     }
   }
 
   call(printers, node.type)
 
+  return text
+}
+
+function printTemplateLiteral(node) {
+  const text = []
+  text.push('`')
+  node.quasis.forEach((q, i) => {
+    text.push(q.value.raw)
+    if (i < node.quasis.length - 1) {
+      const expression = printExpression(node.expressions[i])
+      text.push(`\$\{${expression}\}`)
+    }
+  })
+  text.push('`')
+  return [text.join('')]
+}
+
+function printAssignmentExpression(node) {
+  const text = []
+  const left = printExpression(node.left)
+  const right = printExpression(node.right)
+  const operator = node.operator
+  text.push(`${left} ${operator} ${right}`)
   return text
 }
 
@@ -400,6 +435,24 @@ function printVariableDeclarator(parent, node) {
 
     NewExpression() {
       text.push(printNewExpression(node.init).join('\n'))
+    },
+
+    TemplateLiteral() {
+      text.push(printTemplateLiteral(node.init).join('\n'))
+    },
+
+    TaggedTemplateExpression() {
+      text.push(printTaggedTemplateExpression(node.init).join('\n'))
+    },
+
+    UnaryExpression() {
+      text.push(printUnaryExpression(node.init).join('\n'))
+    },
+
+    LogicalExpression() {
+      const left = printExpression(node.init.left)
+      const right = printExpression(node.init.right)
+      text.push(`${left} ${node.init.operator} ${right}`)
     }
   }
 
@@ -411,6 +464,12 @@ function printVariableDeclarator(parent, node) {
   }
 
   return [text.join('')]
+}
+
+function printTaggedTemplateExpression(node) {
+  const tag = printExpression(node.tag)
+  const template = printTemplateLiteral(node.quasi)
+  return [`${tag}${template.join('\n')}`]
 }
 
 function printNewExpression(node) {
@@ -452,12 +511,25 @@ function printExpressionStatement(node) {
 
     NewExpression() {
       text.push(printNewExpression(node.expression).join('\n'))
+    },
+
+    TaggedTemplateExpression() {
+      text.push(printTaggedTemplateExpression(node.expression).join('\n'))
+    },
+
+    ThrowStatement() {
+      text.push(printThrowStatement(node.expression).join('\n'))
     }
   }
 
   call(printers, node.expression.type)
 
   return text
+}
+
+function printThrowStatement(node) {
+  const argument = printExpression(node.argument)
+  return [`throw ${argument}`]
 }
 
 function printExpression(node) {
@@ -541,10 +613,33 @@ function printExpression(node) {
 
     ArrowFunctionExpression() {
       return printArrowFunctionExpression(node).join('\n')
+    },
+
+    UnaryExpression() {
+      return printUnaryExpression(node).join('\n')
+    },
+
+    AssignmentExpression() {
+      return printAssignmentExpression(node).join('\n')
+    },
+
+    NewExpression() {
+      return printNewExpression(node).join('\n')
     }
   }
 
   return call(printers, node.type)
+}
+
+function printUnaryExpression(node) {
+  const text = []
+  const argument = printExpression(node.argument)
+  if (node.prefix) {
+    text.push(`${node.operator}${argument}`)
+  } else {
+    text.push(`${argument}${node.operator}`)
+  }
+  return text
 }
 
 function call(obj, method, ...args) {

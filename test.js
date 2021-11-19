@@ -128,7 +128,6 @@ a.forEach(x => x + 1)
 a[0](x => x().y + 1)
 a(x + b)()
 let x100, y100 = 10
-// const x101 = \`\`
 while (x) { break }
 while (x) { console.log(y) }
 w2:
@@ -144,6 +143,19 @@ const b80 = b().x
 for (let i = 0; i < array.length; i++) {
   console.log(i)
 }
+const b81 = /foo/g
+const b82 = \`foo\`
+let a100 = 10
+const b83 = \`foo$\{a100\} bar $\{b82\}\`
+const b84 = \`foo\$\{a().x().y[z]\}bar\`
+const b85 = a\`x\`
+a\`x\`
+a().b\`foo \$\{bar(baz().x)\}\`
+function k(a, b, c, d, e, f, g) {
+  a = h(a, h(h(b & c | ~b & d, e), g));
+  return h(a << f | a >>> 32 - f, b)
+}
+for (c = 0; 3 >= c; c++) d = a >>> 8 * c & 255, d = "0" + d.toString(16), b += d.substr(d.length - 2, 2);
 `
 
 function print(t) {
