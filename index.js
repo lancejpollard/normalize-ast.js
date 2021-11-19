@@ -188,7 +188,7 @@ function normalize_BlockStatement(node, scope) {
   const body = []
 
   node.body.forEach(bd => {
-    const [data, expressions] = normalizeType(bd.type, bd, scope)
+    const [data, expressions] = normalizeProperty(node.type, 'body', bd.type, bd, scope)
     body.push(...expressions)
     if (Array.isArray(data)) {
       body.push(...data)
@@ -231,13 +231,19 @@ function normalize_ReturnStatement(node, scope) {
 }
 
 function normalize_LabeledStatement(node, scope) {
-  const [body] = normalizeBodyNode(node.body, scope)
-  const [label] = normalizeExpression(node.label, scope)
-  output.push(createLabeledStatement(label, body))
+  const [body] = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+  const [label] = normalizeProperty(node.type, 'label', node.label.type, node.label, scope)
+  return [
+    createLabeledStatement(label, body),
+    []
+  ]
 }
 
 function normalize_BreakStatement(node, scope) {
-
+  return [
+    node,
+    []
+  ]
 }
 
 function normalize_ContinueStatement(node, scope) {
@@ -299,12 +305,24 @@ function normalize_BigIntLiteral(node, scope) {
 }
 
 function normalize_WhileStatement(node, scope) {
-  const [test, testExps] = normalizeExpression(node.test, scope, true)
-  const body = []
-  node.body.body.forEach(bd => {
-    body.push(...normalizeBodyNode(bd, scope))
-  })
-  const newBody = [...testExps, createIfStatement(test, createBlockStatement(body), createBlockStatement([createBreakStatement()]))]
+  const [test, testExps]
+    = normalizeProperty(node.type, 'test', node.test.type, node.test, scope, true)
+  const [body, bodyExps]
+    = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+
+  body.body.unshift(...bodyExps)
+
+  const newBody = [
+    ...testExps,
+    createIfStatement(
+      test,
+      body,
+      createBlockStatement([
+        createBreakStatement()
+      ])
+    )
+  ]
+
   const whileStatement = createWhileStatement(createLiteral(true), newBody)
   return [whileStatement, []]
 }
@@ -314,20 +332,27 @@ function normalize_DoWhileStatement(node, scope) {
 }
 
 function normalize_ForStatement(node, scope) {
-  const initExps = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope)
-  const [test, testExps] = normalizeProperty(node.type, 'test', node.test?.type ?? null, node.test, scope)
+  let [init, initExps] = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope)
+  const [test, testExps] = normalizeProperty(node.type, 'test', node.test?.type ?? null, node.test, scope, true)
   const [update, updateExps] = normalizeProperty(node.type, 'update', node.update.type, node.update, scope)
-  const [body, bodyExps] = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+  let [body, bodyExps] = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+
+  if (!Array.isArray(init)) init = [init]
+
+  if (body.type !== 'BlockStatement') {
+    body = createBlockStatement([body])
+  }
 
   const block = createBlockStatement([
     ...initExps,
+    ...init,
     createWhileStatement(
       createLiteral(true),
       [
         ...testExps,
         createIfStatement(test,
           createBlockStatement([
-            ...body,
+            ...body.body,
             ...updateExps,
             update
           ]),
@@ -339,7 +364,7 @@ function normalize_ForStatement(node, scope) {
     )
   ])
 
-  return block
+  return [block, []]
 }
 
 function normalize_ForInStatement(node, scope) {
@@ -434,7 +459,10 @@ function normalize_VariableDeclarator(node, scope) {
 }
 
 function normalize_ThisExpression(node, scope) {
-  output.push(node)
+  return [
+    node,
+    []
+  ]
 }
 
 function normalize_ArrayExpression(node, scope) {
@@ -509,60 +537,25 @@ function normalize_FunctionExpression(node, scope) {
 }
 
 function normalize_ArrowFunctionExpression(node, scope) {
-  const output = []
+  const exps = []
   const params = []
+
   node.params.forEach(param => {
-    const [p, pExps] = normalizeFunctionParam(param, scope)
-    output.push(...pExps)
+    const [p, pExps] = normalizeProperty(node.type, 'params', param.type, param, scope)
+    exps.push(...pExps)
     params.push(p)
   })
-  const normalizers = {
-    CallExpression() {
-      [body, expressions] = normalizeExpression(node.body, scope, true);
-      body = createBlockStatement([
-        ...expressions,
-        body
-      ])
-    },
 
-    ArrayExpression() {
-      [body, expressions] = normalizeExpression(node.body, scope);
-      body = createBlockStatement([
-        ...expressions,
-        createReturnStatement(body),
-      ])
-    },
+  let [body, bodyExps]
+    = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
 
-    ObjectExpression() {
-      [body, expressions] = normalizeExpression(node.body, scope);
-      body = createBlockStatement([
-        ...expressions,
-        createReturnStatement(body),
-      ])
-    },
-
-    BlockStatement() {
-      body = []
-      const childScope = scope
-      node.body.body.forEach(bd => {
-        body.push(...normalizeBodyNode(bd, childScope))
-      })
-      body = createBlockStatement(body)
-    },
-
-    BinaryExpression() {
-      [body, expressions] = normalizeExpression(node.body, scope);
-      body = createBlockStatement([
-        ...expressions,
-        createReturnStatement(body),
-      ])
-    }
+  if (body.type !== 'BlockStatement') {
+    body = createBlockStatement([...bodyExps, createReturnStatement(body)])
   }
-  let body
-  call(normalizers, node.body.type)
+
   return [
     createArrowFunctionExpression(node.id, params, body),
-    output
+    exps
   ]
 }
 
@@ -571,16 +564,17 @@ function normalize_YieldExpression(node, scope) {
 }
 
 function normalize_TemplateLiteral(node, scope) {
+  const exps = []
   const quasis = []
   const expressions = []
-  const exps = []
   node.expressions.forEach(expression => {
-    const [exp, expExps] = normalizeExpression(expression, scope)
+    const [exp, expExps] = normalizeProperty(node.type, 'expressions', expression.type, expression, scope, true)
     expressions.push(exp)
     exps.push(...expExps)
   })
   node.quasis.forEach(q => {
-    quasis.push(normalizeTemplateElement(q, scope))
+    const [el] = normalizeProperty(node.type, 'quasis', q.type, q, scope)
+    quasis.push(el)
   })
   return [
     createTemplateLiteral(expressions, quasis),
@@ -589,8 +583,10 @@ function normalize_TemplateLiteral(node, scope) {
 }
 
 function normalize_TaggedTemplateExpression(node, scope) {
-  const [tag, tagExps] = normalizeExpression(node.tag, scope)
-  const [template, templateExps] = normalizeTemplateLiteral(node.quasi, scope)
+  const [tag, tagExps]
+    = normalizeProperty(node.type, 'tag', node.tag.type, node.tag, scope)
+  const [template, templateExps]
+    = normalizeProperty(node.type, 'quasi', node.quasi.type, node.quasi, scope)
   return [
     createTaggedTemplateExpression(tag, template),
     [...templateExps, ...tagExps]
@@ -598,33 +594,40 @@ function normalize_TaggedTemplateExpression(node, scope) {
 }
 
 function normalize_TemplateElement(node, scope) {
-  return node
+  return [node, []]
 }
 
-function normalize_UnaryExpression(node, scope) {
-  const [argument, argumentExps] = normalizeExpression(node.argument, scope, isolate)
-  return [
-    createUnaryExpression(argument, node.operator, node.prefix),
-    argumentExps
-  ]
-  // const [update, updateExps] = normalizeUnaryExpression(node, scope, isolate)
-  // expressionStatements.push(...updateExps)
-  // if (isolate) {
-  //   const name = `tmp${scope.index++}`
-  //   expressionStatements.push(
-  //     createVariable('const',
-  //       createIdentifier(name),
-  //       update
-  //     )
-  //   )
-  //   output.push(createIdentifier(name))
-  // } else {
-  //   output.push(update)
-  // }
+function normalize_UnaryExpression(node, scope, isolate) {
+  const exps = []
+  const [argument, argumentExps]
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope)
+
+  exps.push(...argumentExps)
+
+  const unary = createUnaryExpression(argument, node.operator, node.prefix)
+  if (isolate) {
+    const name = `tmp${scope.index++}`
+    exps.push(
+      createVariable('const',
+        createIdentifier(name),
+        unary
+      )
+    )
+    return [
+      createIdentifier(name),
+      exps
+    ]
+  } else {
+    return [
+      unary,
+      exps
+    ]
+  }
 }
 
 function normalize_UpdateExpression(node, scope) {
-  const [argument, argumentExps] = normalizeExpression(node.argument, scope)
+  const [argument, argumentExps]
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope)
   return [
     createUpdateExpression(argument, node.operator, node.prefix),
     argumentExps
@@ -819,7 +822,7 @@ function normalize_ConditionalExpression(node, scope, isolate) {
 
 function normalize_CallExpression(node, scope, isolate) {
   const [_callee, calleeExps]
-    = normalizeProperty(node.type, 'callee', node.callee.type, node.callee, scope, isolate)
+    = normalizeProperty(node.type, 'callee', node.callee.type, node.callee, scope, true)
 
   const args = []
   const exps = []
@@ -854,15 +857,22 @@ function normalize_CallExpression(node, scope, isolate) {
 }
 
 function normalize_NewExpression(node, scope) {
-  const [ctor, ctorExps] = normalizeExpression(node.callee, scope)
+  const exps = []
+  const [ctor, ctorExps]
+    = normalizeProperty(node.type, 'callee', node.callee.type, node.callee, scope)
   const argExps = []
   const args = []
   node.arguments.forEach(arg => {
-    const [argument, argumentExps] = normalizeExpression(arg, scope, true)
+    const [argument, argumentExps]
+      = normalizeProperty(node.type, 'arguments', arg.type, arg, scope, true)
     args.push(argument)
     argExps.push(...argumentExps)
   })
-  return [createNewExpression(ctor, args), ctorExps.concat(argExps)]
+  exps.push(...ctorExps, ...argExps)
+  return [
+    createNewExpression(ctor, args),
+    exps
+  ]
 }
 
 function normalize_SequenceExpression(node, scope) {
@@ -877,7 +887,8 @@ function normalize_SequenceExpression(node, scope) {
 }
 
 function normalize_SpreadElement(node, scope) {
-  const [arg, argExps] = normalizeExpression(node.argument, scope)
+  const [arg, argExps]
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope, true)
   return [
     createSpreadElement(arg),
     argExps
@@ -903,7 +914,8 @@ function normalize_ObjectPattern(node, scope) {
 }
 
 function normalize_RestElement(node, scope) {
-  const [arg, argExps] = normalizeExpression(node.argument, scope)
+  const [arg, argExps]
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope)
   return [
     createRestElement(arg),
     argExps
@@ -922,29 +934,39 @@ function normalize_AssignmentPattern(node, scope) {
 }
 
 function normalize_ClassBody(node, scope) {
+  const exps = []
   const body = []
-  const output = []
   node.body.forEach(bd => {
-    const [method, methodExps] = normalizeMethodDefinition(bd, scope)
-    output.push(...methodExps)
+    const [method, methodExps] = normalizeProperty(node.type, 'body', bd.type, bd, scope)
+    exps.push(...methodExps)
     body.push(method)
   })
-  return [createClassBody(body), output]
+  return [createClassBody(body), exps]
 }
 
 function normalize_MethodDefinition(node, scope) {
-  const [key, keyExps] = normalizeProperty(node.type, 'key', node.key.type, node.key, scope)
-  const [value, valueExps] = normalizeProperty(node.type, 'value', node.value.type, node.value, scope)
-  return [createMethodDefinition(key, value.pop()), keyExps]
+  const [key, keyExps]
+    = normalizeProperty(node.type, 'key', node.key.type, node.key, scope)
+  const [value, valueExps]
+    = normalizeProperty(node.type, 'value', node.value.type, node.value, scope)
+
+  return [createMethodDefinition(key, value), keyExps]
 }
 
 function normalize_ClassDeclaration(node, scope) {
-  const [id, idExps] = normalizeExpression(node.id, scope)
-  const output = [...idExps]
-  const superClass = null
-  const [body, bodyExps] = normalizeClassBody(node.body, scope)
-  output.push(...bodyExps)
-  return [createClassDeclaration(id, superClass, body), output]
+  const exps = []
+
+  const [id, idExps]
+    = normalizeProperty(node.type, 'id', node.id?.type ?? null, node.id, scope)
+  const superClass
+    = normalizeProperty(node.type, 'superClass', node.superClass?.type ?? null, node.superClass, scope)
+  const [body, bodyExps]
+    = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+
+  exps.push(...idExps)
+  exps.push(...bodyExps)
+
+  return [createClassDeclaration(id, superClass, body), exps]
 }
 
 function normalize_ClassExpression(node, scope) {

@@ -103,6 +103,14 @@ function printBodyNode(node) {
       const _callee = printExpression(node.callee)
       const args = node.arguments.map(arg => printExpression(arg))
       text.push(`${_callee}(${args.join(', ')})`)
+    },
+
+    NewExpression() {
+      text.push(printNewExpression(node).join('\n'))
+    },
+
+    TaggedTemplateExpression() {
+      text.push(printTaggedTemplateExpression(node).join('\n'))
     }
   }
 
