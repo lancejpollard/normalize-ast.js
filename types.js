@@ -1,7 +1,12 @@
 
 const Type = {
+  Node: {
+    extends: { type: [] },
+    properties: {}
+  },
   Statement: {
     extends: { type: ['Node'] },
+    properties: {}
   },
   Identifier: {
     extends: { type: ['Expression', 'Pattern'] },
@@ -192,7 +197,8 @@ const Type = {
     }
   },
   Declaration: {
-    extends: { type: ['Statement'] }
+    extends: { type: ['Statement'] },
+    properties: {}
   },
   FunctionDeclaration: {
     extends: { type: ['Function', 'Declaration'] },
@@ -215,10 +221,12 @@ const Type = {
     }
   },
   Expression: {
-    extends: { type: ['Node'] }
+    extends: { type: ['Node'] },
+    properties: {}
   },
   ThisExpression: {
     extends: { type: ['Expression'] },
+    properties: {}
   },
   ArrayExpression: {
     extends: { type: ['Expression'] },
@@ -245,6 +253,7 @@ const Type = {
   },
   FunctionExpression: {
     extends: { type: ['Function', 'Expression'] },
+    properties: {}
   },
   ArrowFunctionExpression: {
     extends: { type: ['Function', 'Expression'] },
@@ -412,10 +421,10 @@ const Type = {
     extends: { type: ['Node'] },
     properties: {
       key: { type: ['Expression'] },
-      value: FunctionExpression;
-      kind: "constructor" | "method" | "get" | "set";
-      computed: boolean;
-      static: boolean;
+      value: { type: ['FunctionExpression'] },
+      kind: { type: ['string'] },
+      computed: { type: ['boolean'] },
+      static: { type: ['boolean'] },
     }
   },
   ClassDeclaration: {
@@ -438,7 +447,7 @@ const Type = {
     }
   },
   ModuleDeclaration: {
-    extends: ['Node'],
+    extends: { type: ['Node'] },
     properties: {
 
     }

@@ -1,6 +1,8 @@
 
 module.exports = {
   createProgram,
+  createVariable,
+  createArrayPattern,
   createMemberExpression,
   createConditionalExpression,
   createBinaryExpression,
@@ -191,6 +193,12 @@ function createExpressionStatement(expression) {
   }
 }
 
+function createVariable(kind, id, init) {
+  return createVariableDeclaration(kind, [
+    createVariableDeclarator(id, init)
+  ])
+}
+
 function createVariableDeclaration(kind, declarations) {
   return {
     type: 'VariableDeclaration',
@@ -237,10 +245,7 @@ function createFunctionDeclaration(id, params, body) {
     type: 'FunctionDeclaration',
     id,
     params,
-    body: {
-      type: 'BlockStatement',
-      body
-    }
+    body
   }
 }
 
@@ -249,10 +254,7 @@ function createFunctionExpression(id, params, body) {
     type: 'FunctionExpression',
     id,
     params,
-    body: {
-      type: 'BlockStatement',
-      body
-    }
+    body
   }
 }
 
@@ -314,10 +316,7 @@ function createForInStatement(left, right, body) {
     type: 'ForInStatement',
     left,
     right,
-    body: {
-      type: 'BlockStatement',
-      body
-    }
+    body
   }
 }
 
@@ -326,10 +325,7 @@ function createForOfStatement(left, right, body) {
     type: 'ForOfStatement',
     left,
     right,
-    body: {
-      type: 'BlockStatement',
-      body
-    }
+    body
   }
 }
 
@@ -358,5 +354,12 @@ function createLabeledStatement(label, body) {
     type: 'LabeledStatement',
     label,
     body
+  }
+}
+
+function createArrayPattern(elements) {
+  return {
+    type: 'ArrayPattern',
+    elements
   }
 }

@@ -87,6 +87,22 @@ function printBodyNode(node) {
 
     Literal() {
       text.push(node.raw)
+    },
+
+    MemberExpression() {
+      const object = printExpression(node.object)
+      const property = printExpression(node.property)
+      if (node.computed) {
+        text.push(`${object}[${property}]`)
+      } else {
+        text.push(`${object}.${property}`)
+      }
+    },
+
+    CallExpression() {
+      const _callee = printExpression(node.callee)
+      const args = node.arguments.map(arg => printExpression(arg))
+      text.push(`${_callee}(${args.join(', ')})`)
     }
   }
 
@@ -453,6 +469,10 @@ function printVariableDeclarator(parent, node) {
       const left = printExpression(node.init.left)
       const right = printExpression(node.init.right)
       text.push(`${left} ${node.init.operator} ${right}`)
+    },
+
+    FunctionExpression() {
+      text.push(printFunctionDeclaration(node.init).join('\n'))
     }
   }
 
