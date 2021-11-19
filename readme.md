@@ -1,164 +1,78 @@
 
 # Normalize a JS AST
 
+Here are the transformation goals:
+
+```js
+// before
+function x() {
+  console.log('foo')
+}
+
+// after
+// (and hoists the function to the top of the scope)
+const x = function() {
+  console.log('foo')
+}
 ```
-$ node test
-const x = y
-x
-x = y
-x.z = y
-a.b = c.d
-a[x]
-a[x.y]
-a[x.y[y.z][q.r]]
-a[x.y[y.z][q.r]] = y
-a()
-a(y)
-a(x, y)
-a(x.y)
-a(x.y[y.z])
-const tmp0 = x()
-a(tmp0)
-const tmp1 = x.y()
-a(tmp1)
-const tmp2 = x.y[z]()
-a(tmp2)
-const tmp3 = z(w)
-const tmp4 = x.y[tmp3]()
-a(tmp4)
-const tmp5 = z(w)
-const tmp6 = x.y[tmp5]()
-const tmp7 = a(tmp6)
-x = tmp7
-const tmp8 = x()
-const tmp9 = y()
-tmp8.a = tmp9.b
-const tmp10 = x()
-const tmp11 = y()
-tmp10[a] = tmp11[b]
-a = x || y
-a = x.y || y.z
-const tmp12 = c()
-const tmp13 = x(tmp12)
-const tmp14 = y()
-a = tmp13.y || tmp14.z
-a = x >>> y
-x = a ? b : c
-const tmp15 = g(h)
-const tmp16 = y(tmp15)
-x = a ? tmp16 >>> z : c
-tmp17 = y
-a = tmp17.a
-b = tmp17.b
-const tmp18 = g()
-const tmp19 = y(tmp18[z])
-tmp20 = tmp19.x
-a = tmp20.a
-b = tmp20.b
-c = tmp20.c
-const a = x.a
-const b = x.b
-let w = x.y.w
-let z = x.y.z
-function p() {
+
+```js
+// before
+const x = () => {
+  this...
 }
-function p2(x) {
-  console.log(x)
+
+// after
+const _this123 = this
+const x = function() {
+  _this123...
 }
-function p3(x = y) {
-  console.log(x)
+```
+
+```js
+// before
+const x = function x() {
+
 }
-function p4(x = y.z) {
-  console.log(x)
+
+// after
+const x = function() {
+
 }
-const tmp21 = y.z()
-function p5(x = tmp21) {
-  console.log(x)
-}
-function p6(x) {
-  const tmp22 = x.a()
-  return tmp22.z > y
-}
-function p7(a, b, c) {
-}
-if (x) {
-  y()
-}
-if (x) {
-  y()
-} else {
-  z[a.b]()
-}
+```
+
+```js
+// before
+a ? b() : c()
+
+// after
 if (a) {
-  y()
-} else if (b) {
-  z()
-} else if (c) {
-  w()
-}
-if (x.y) {
-  y()
-}
-const tmp23 = x.y()
-if (tmp23.z) {
-  y()
-}
-const tmp24 = b.y()
-if (x) {
-  y()
-} else if (tmp24.z) {
-  z()
-}
-if (x) {
-  const tmp25 = y()
-  tmp25.z
+  b()
 } else {
-  const tmp25 = z()
-  tmp25.y
+  c()
 }
-const a1 = 10
-const a2 = 'foo'
-const a3 = true
-const a4 = null
-const a5 = {}
-const o1 = {
-  foo: 'bar'
+```
+
+All parameters should be flattened to variable expressions.
+
+```js
+// before
+if (x()) {
+  y()
 }
-const o2 = {
-  a: b
+
+// after
+const tmp123 = x()
+if (tmp123) {
+  y()
 }
-const tmp25 = b()
-const tmp26 = e(f)
-const tmp27 = tmp26.g()
-const o3 = {
-  a: tmp25.c,
-  d: tmp27.h
-}
-const a6 = []
-const a7 = [
-  1,
-  b,
-  'three'
-]
-const a8 = [
-  {}
-]
-const a9 = [
-  {
-  a: 10
-}
-]
-const a10 = [
-  {
-  a: [
-  []
-]
-}
-]
-const tmp28 = foo()
-const a11 = i ? [
-  1
-] : [
-  tmp28.bar
-]
+```
+
+```js
+// before
+const { a, b } = z
+
+// after
+const a = z.a
+const b = z.b
 ```

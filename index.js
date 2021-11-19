@@ -161,7 +161,7 @@ function normalizeAssignmentExpression(node, scope) {
 }
 
 function normalizeBlockStatement(node, scope) {
-  const childScope = { ...scope }
+  const childScope = scope
   const body = []
   node.body.forEach(bd => {
     body.push(...normalizeBodyNode(bd, childScope))
@@ -170,7 +170,7 @@ function normalizeBlockStatement(node, scope) {
 }
 
 function normalizeForStatement(node, scope) {
-  const childScope = { ...scope }
+  const childScope = scope
   let initExps
   if (node.init) {
     initExps = normalizeBodyNode(node.init, childScope)
@@ -276,10 +276,10 @@ function normalizeForInStatement(node, scope) {
   const body = []
   if (node.body.type === 'BlockStatement') {
     node.body.body.forEach(bd => {
-      body.push(...normalizeBodyNode(bd, { ...scope }))
+      body.push(...normalizeBodyNode(bd, scope))
     })
   } else {
-    body.push(...normalizeBodyNode(node.body, { ...scope }))
+    body.push(...normalizeBodyNode(node.body, scope))
   }
   const forInStatement = createForInStatement(left, right, body)
   return [forInStatement, output]
@@ -293,7 +293,7 @@ function normalizeForOfStatement(node, scope) {
   output.push(...rightExps)
   const body = []
   node.body.body.forEach(bd => {
-    body.push(...normalizeBodyNode(bd, { ...scope }))
+    body.push(...normalizeBodyNode(bd, scope))
   })
   const forOfStatement = createForOfStatement(left, right, body)
   return [forOfStatement, output]
@@ -307,10 +307,11 @@ function createBreakStatement(label) {
 }
 
 function normalizeWhileStatement(node, scope) {
-  const [test, testExps] = normalizeExpression(node.test, scope, true)
+  const childScope = scope
+  const [test, testExps] = normalizeExpression(node.test, childScope, true)
   const body = []
   node.body.body.forEach(bd => {
-    body.push(...normalizeBodyNode(bd, { ...scope }))
+    body.push(...normalizeBodyNode(bd, childScope))
   })
   const newBody = [...testExps, createIfStatement(test, createBlockStatement(body), createBlockStatement([createBreakStatement()]))]
   const whileStatement = createWhileStatement(createLiteral(true), newBody)
@@ -329,11 +330,11 @@ function normalizeIfStatement(node, scope) {
   let consequent = []
   if (node.consequent.type === 'BlockStatement') {
     node.consequent.body.forEach(statement => {
-      const cons = normalizeBodyNode(statement, { ...scope })
+      const cons = normalizeBodyNode(statement, scope)
       consequent.push(...cons)
     })
   } else {
-    consequent.push(...normalizeExpressionStatement(node.consequent, { ...scope }))
+    consequent.push(...normalizeExpressionStatement(node.consequent, scope))
   }
   consequent = createBlockStatement(consequent)
   let alternate = null
@@ -341,7 +342,7 @@ function normalizeIfStatement(node, scope) {
     if (node.alternate.type === 'BlockStatement') {
       alternate = []
       node.alternate.body.forEach(statement => {
-        const alts = normalizeBodyNode(statement, { ...scope })
+        const alts = normalizeBodyNode(statement, scope)
         alternate.push(...alts)
       })
       alternate = createBlockStatement(alternate)
@@ -373,7 +374,7 @@ function normalizeArrowFunctionExpression(node, scope) {
   })
   const normalizers = {
     CallExpression() {
-      [body, expressions] = normalizeExpression(node.body, { ...scope }, true);
+      [body, expressions] = normalizeExpression(node.body, scope, true);
       body = createBlockStatement([
         ...expressions,
         body
@@ -381,7 +382,7 @@ function normalizeArrowFunctionExpression(node, scope) {
     },
 
     ArrayExpression() {
-      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      [body, expressions] = normalizeExpression(node.body, scope);
       body = createBlockStatement([
         ...expressions,
         createReturnStatement(body),
@@ -389,7 +390,7 @@ function normalizeArrowFunctionExpression(node, scope) {
     },
 
     ObjectExpression() {
-      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      [body, expressions] = normalizeExpression(node.body, scope);
       body = createBlockStatement([
         ...expressions,
         createReturnStatement(body),
@@ -398,7 +399,7 @@ function normalizeArrowFunctionExpression(node, scope) {
 
     BlockStatement() {
       body = []
-      const childScope = { ...scope }
+      const childScope = scope
       node.body.body.forEach(bd => {
         body.push(...normalizeBodyNode(bd, childScope))
       })
@@ -406,7 +407,7 @@ function normalizeArrowFunctionExpression(node, scope) {
     },
 
     BinaryExpression() {
-      [body, expressions] = normalizeExpression(node.body, { ...scope });
+      [body, expressions] = normalizeExpression(node.body, scope);
       body = createBlockStatement([
         ...expressions,
         createReturnStatement(body),
@@ -422,7 +423,7 @@ function normalizeArrowFunctionExpression(node, scope) {
 }
 
 function normalizeFunctionExpression(node, scope) {
-  const childScope = { ...scope }
+  const childScope = scope
   const output = []
   const params = []
   node.params.forEach(param => {
@@ -575,7 +576,7 @@ function normalizeVariableDeclarator(parent, node, scope) {
         },
 
         FunctionExpression() {
-          // output.push(...normalizeFunctionExpression(node.init, { ...scope }))
+          // output.push(...normalizeFunctionExpression(node.init, scope))
         },
 
         MemberExpression() {
@@ -781,7 +782,7 @@ function normalizeNewExpression(node, scope) {
   const argExps = []
   const args = []
   node.arguments.forEach(arg => {
-    const [argument, argumentExps] = normalizeExpression(arg, { ...scope }, true)
+    const [argument, argumentExps] = normalizeExpression(arg, scope, true)
     args.push(argument)
     argExps.push(...argumentExps)
   })
@@ -887,7 +888,7 @@ function normalizeExpressionStatement(node, scope) {
     },
 
     FunctionExpression() {
-      output.push(...normalizeFunctionExpression(node, { ...scope }))
+      output.push(...normalizeFunctionExpression(node, scope))
     },
 
     NewExpression() {

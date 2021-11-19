@@ -156,6 +156,18 @@ function k(a, b, c, d, e, f, g) {
   return h(a << f | a >>> 32 - f, b)
 }
 for (c = 0; 3 >= c; c++) d = a >>> 8 * c & 255, d = "0" + d.toString(16), b += d.substr(d.length - 2, 2);
+function bigintStringToBytes(str) {
+  let dec = [...str],  sum = []
+  while(dec.length){
+      let s = 1 * dec.shift()
+      for(let i = 0; s || i < sum.length; i++){
+          s += (sum[i] || 0) * 10
+          sum[i] = s % 256
+          s = (s - sum[i]) / 256
+      }
+  }
+  return Uint8Array.from(sum.reverse())
+}
 `
 
 function print(t) {
