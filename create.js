@@ -1,5 +1,6 @@
 
 module.exports = {
+  createProgram,
   createMemberExpression,
   createConditionalExpression,
   createBinaryExpression,
@@ -25,6 +26,13 @@ module.exports = {
   createForOfStatement,
   createWhileStatement,
   createLabeledStatement
+}
+
+function createProgram(body) {
+  return {
+    type: 'Program',
+    body
+  }
 }
 
 function createMemberExpression(object, property, computed = false) {

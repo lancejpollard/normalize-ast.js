@@ -2,6 +2,7 @@
 const acorn = require('acorn')
 const print = require('./print')
 const {
+  createProgram,
   createMemberExpression,
   createConditionalExpression,
   createBinaryExpression,
@@ -28,6 +29,7 @@ const {
   createWhileStatement,
   createLabeledStatement
 } = require('./create')
+const types = require('./types')
 
 module.exports = {
   parse,
@@ -40,19 +42,285 @@ function parse(string) {
 }
 
 function normalize(input) {
-  const output = {
-    type: 'Program',
-    body: []
-  }
-  const scope = {
-    index: 0,
-  }
+  return normalizeType(input.type, input, { index: 0 })
+}
 
-  input.body.forEach(node => {
-    output.body.push(...normalizeBodyNode(node, scope))
+// function normalize_Program(node, scope) {
+//   const body = normalize_Program_body(node.body, scope)
+//   return createProgram(body)
+// }
+
+function normalizeType(type, ...args) {
+  return call(normalizers, `normalize_${type}`, ...args)
+}
+
+function normalizeProperty(type, property, propertyType, ...args) {
+  return call(normalizers, `normalize_${type}_${property}_${propertyType}`, ...args)
+}
+
+function normalize_Program_body(array) {
+  const body = []
+  array.forEach(node => {
+    const [normalizedNode, normalizedExpressions]
+      = normalizeProperty('Program', 'body', node.type, node, scope)
+    body.push(...normalizedExpressions)
+    body.push(normalizedNode)
   })
+  return body
+}
 
-  return output
+const normalizers = {
+  ...buildNormalizers(types),
+  normalize_Identifier,
+  normalize_ExpressionStatement,
+  normalize_Directive,
+  normalize_BlockStatement,
+  normalize_EmptyStatement,
+  normalize_DebuggerStatement,
+  normalize_WithStatement,
+  normalize_ReturnStatement,
+  normalize_LabeledStatement,
+  normalize_BreakStatement,
+  normalize_ContinueStatement,
+  normalize_IfStatement,
+  normalize_SwitchStatement,
+  normalize_SwitchCase,
+  normalize_ThrowStatement,
+  normalize_TryStatement,
+  normalize_CatchClause,
+  normalize_WhileStatement,
+  normalize_DoWhileStatement,
+  normalize_ForStatement,
+  normalize_ForInStatement,
+  normalize_FunctionDeclaration,
+  normalize_VariableDeclaration,
+  normalize_VariableDeclarator,
+  normalize_ThisExpression,
+  normalize_ArrayExpression,
+  normalize_ObjectExpression,
+  normalize_Property,
+  normalize_FunctionExpression,
+  normalize_UnaryExpression,
+  normalize_UpdateExpression,
+  normalize_BinaryExpression,
+  normalize_AssignmentExpression,
+  normalize_LogicalExpression,
+  normalize_MemberExpression,
+  normalize_ConditionalExpression,
+  normalize_CallExpression,
+  normalize_NewExpression,
+  normalize_SequenceExpression,
+}
+
+function buildNormalizers(types) {
+  const normalizers = {}
+  Object.keys(types).forEach(type => {
+    const def = types[type]
+    normalizers[`normalize_${type}`] = buildNormalizeTypeFunction(type, def)
+    def.extends.forEach(extend => {
+      const parent = types[extend]
+      Object.keys(parent.properties).forEach(name => {
+        def.properties[name]
+          = def.properties[name]
+          || parent.properties[name]
+      })
+      Object.keys(def.properties).forEach(name => {
+        const property = def.properties[name]
+        property.type.forEach(propertyType => {
+          normalizers[`normalize_${type}_${name}_${propertyType}`] = buildNormalizePropertyType(type, def, property, propertyType)
+        })
+      })
+    })
+  })
+}
+
+function buildNormalizePropertyType(type, def, property, propertyType) {
+  return function(node, scope) {
+    return normalizers[`normalize_${type}`](node, scope)
+  }
+}
+
+function buildNormalizeTypeFunction(type, def) {
+  return function(node, scope) {
+    const object = {}
+    const expressions = []
+    Object.keys(def.properties).forEach(name => {
+      const property = def.properties[name]
+      if (property.list) {
+        const list = object[name] = []
+        const propertyNodes = node[name] ?? []
+        propertyNodes.forEach(propertyNode => {
+          const [normalizedPropertyNode, normalizedExpressions]
+            = normalizeProperty(type, name, propertyNode.type, propertyNode, scope)
+          list.push(normalizedPropertyNode)
+          expressions.push(...normalizedExpressions)
+        })
+      } else {
+        const propertyNode = node[name]
+        const [normalizedPropertyNode, normalizedExpressions]
+          = normalizeProperty(type, name, propertyNode?.type ?? null, propertyNode, scope)
+        object[name] = normalizedPropertyNode
+        expressions.push(...normalizedExpressions)
+      }
+    })
+    return [create[node.type](object), expressions]
+  }
+}
+
+function normalize_Identifier(node, scope) {
+
+}
+
+function normalize_ExpressionStatement(node, scope) {
+
+}
+
+function normalize_Directive(node, scope) {
+
+}
+
+function normalize_BlockStatement(node, scope) {
+
+}
+
+function normalize_EmptyStatement(node, scope) {
+
+}
+
+function normalize_DebuggerStatement(node, scope) {
+
+}
+
+function normalize_WithStatement(node, scope) {
+
+}
+
+function normalize_ReturnStatement(node, scope) {
+
+}
+
+function normalize_LabeledStatement(node, scope) {
+
+}
+
+function normalize_BreakStatement(node, scope) {
+
+}
+
+function normalize_ContinueStatement(node, scope) {
+
+}
+
+function normalize_IfStatement(node, scope) {
+
+}
+
+function normalize_SwitchStatement(node, scope) {
+
+}
+
+function normalize_SwitchCase(node, scope) {
+
+}
+
+function normalize_ThrowStatement(node, scope) {
+
+}
+
+function normalize_TryStatement(node, scope) {
+
+}
+
+function normalize_CatchClause(node, scope) {
+
+}
+
+function normalize_WhileStatement(node, scope) {
+
+}
+
+function normalize_DoWhileStatement(node, scope) {
+
+}
+
+function normalize_ForStatement(node, scope) {
+
+}
+
+function normalize_ForInStatement(node, scope) {
+
+}
+
+function normalize_FunctionDeclaration(node, scope) {
+
+}
+
+function normalize_VariableDeclaration(node, scope) {
+
+}
+
+function normalize_VariableDeclarator(node, scope) {
+
+}
+
+function normalize_ThisExpression(node, scope) {
+
+}
+
+function normalize_ArrayExpression(node, scope) {
+
+}
+
+function normalize_ObjectExpression(node, scope) {
+
+}
+
+function normalize_Property(node, scope) {
+
+}
+
+function normalize_FunctionExpression(node, scope) {
+
+}
+
+function normalize_UnaryExpression(node, scope) {
+
+}
+
+function normalize_UpdateExpression(node, scope) {
+
+}
+
+function normalize_BinaryExpression(node, scope) {
+
+}
+
+function normalize_AssignmentExpression(node, scope) {
+
+}
+
+function normalize_LogicalExpression(node, scope) {
+
+}
+
+function normalize_MemberExpression(node, scope) {
+
+}
+
+function normalize_ConditionalExpression(node, scope) {
+
+}
+
+function normalize_CallExpression(node, scope) {
+
+}
+
+function normalize_NewExpression(node, scope) {
+
+}
+
+function normalize_SequenceExpression(node, scope) {
+
 }
 
 function normalizeBodyNode(node, scope) {

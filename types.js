@@ -5,6 +5,28 @@ const Type = {
   },
   Identifier: {
     extends: { type: ['Expression', 'Pattern'] },
+    properties: {
+      name: { type: ['string'] }
+    }
+  },
+  Literal: {
+    extends: { type: ['Expression'] },
+    properties: {
+      value: { type: ['string', 'boolean', null, 'number', 'RegExp'] }
+    }
+  },
+  Program: {
+    extends: { type: ['Node'] },
+    properties: {
+      body: { type: ['Directive', 'Statement'], list: true }
+    }
+  },
+  Function: {
+    extends: { type: ['Node'] },
+    properties: {
+      params: { type: ['Pattern'], list: true },
+      body: { type: ['FunctionBody'] }
+    }
   },
   ExpressionStatement: {
     extends: { type: ['Statement'] },
