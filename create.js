@@ -25,7 +25,113 @@ module.exports = {
   createForInStatement,
   createForOfStatement,
   createWhileStatement,
-  createLabeledStatement
+  createLabeledStatement,
+  createMethodDefinition,
+  createClassDeclaration,
+  createClassBody,
+  createBreakStatement,
+  createThrowStatement,
+  createSpreadElement,
+  createRestElement,
+  createTaggedTemplateExpression,
+  createTemplateLiteral,
+  createNewExpression,
+  createUnaryExpression,
+  createUpdateExpression
+}
+
+function createUpdateExpression(argument, operator, prefix) {
+  return {
+    type: 'UpdateExpression',
+    argument,
+    operator,
+    prefix
+  }
+}
+
+function createUnaryExpression(argument, operator, prefix) {
+  return {
+    type: 'UnaryExpression',
+    argument,
+    operator,
+    prefix
+  }
+}
+
+function createNewExpression(ctor, args) {
+  return {
+    type: 'NewExpression',
+    callee: ctor,
+    arguments: args
+  }
+}
+
+function createTemplateLiteral(expressions, quasis) {
+  return {
+    type: 'TemplateLiteral',
+    expressions,
+    quasis
+  }
+}
+
+function createTaggedTemplateExpression(tag, quasi) {
+  return {
+    type: 'TaggedTemplateExpression',
+    tag,
+    quasi
+  }
+}
+
+function createRestElement(argument) {
+  return {
+    type: 'RestElement',
+    argument
+  }
+}
+
+function createSpreadElement(argument) {
+  return {
+    type: 'SpreadElement',
+    argument
+  }
+}
+
+function createThrowStatement(argument) {
+  return {
+    type: 'ThrowStatement',
+    argument
+  }
+}
+
+function createBreakStatement(label) {
+  return {
+    type: 'BreakStatement',
+    label
+  }
+}
+
+function createClassBody(body) {
+  return {
+    type: 'ClassBody',
+    body
+  }
+}
+
+function createClassDeclaration(id, superClass, body) {
+  return {
+    type: 'ClassDeclaration',
+    id,
+    superClass,
+    body
+  }
+}
+
+function createMethodDefinition(key, value) {
+  return {
+    type: 'MethodDefinition',
+    key,
+    value
+  }
 }
 
 function createProgram(body) {

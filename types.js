@@ -18,14 +18,22 @@ const Type = {
   Program: {
     extends: { type: ['Node'] },
     properties: {
-      body: { type: ['Directive', 'Statement'], list: true }
+      body: { type: ['ModuleDeclaration', 'Statement'], list: true }
     }
   },
   Function: {
     extends: { type: ['Node'] },
     properties: {
       params: { type: ['Pattern'], list: true },
-      body: { type: ['FunctionBody'] }
+      body: { type: ['FunctionBody'] },
+      generator: { type: ['boolean'] },
+      async: { type: ['boolean'] }
+    }
+  },
+  Super: {
+    extends: { type: ['Node'] },
+    properties: {
+
     }
   },
   ExpressionStatement: {
@@ -136,8 +144,14 @@ const Type = {
   CatchClause: {
     extends: { type: ['Node'] },
     properties: {
-      param: { type: ['Pattern'] },
+      param: { type: ['Pattern', null] },
       body: { type: ['BlockStatement'] }
+    }
+  },
+  BigIntLiteral: {
+    extends: { type: ['Literal'] },
+    properties: {
+      bigint: { type: ['string'] }
     }
   },
   WhileStatement: {
@@ -169,6 +183,12 @@ const Type = {
       left: { type: ['VariableDeclaration', 'Pattern'] },
       right: { type: ['Expression'] },
       body: { type: ['Statement'] }
+    }
+  },
+  ForOfStatement: {
+    extends: { type: ['Statement'] },
+    properties: {
+      await: { type: ['boolean'] }
     }
   },
   Declaration: {
@@ -203,25 +223,63 @@ const Type = {
   ArrayExpression: {
     extends: { type: ['Expression'] },
     properties: {
-      elements: { type: ['Expression', null], list: true }
+      elements: { type: ['Expression', 'SpreadElement', null], list: true }
     }
   },
   ObjectExpression: {
     extends: { type: ['Expression'] },
     properties: {
-      properties: { type: ['Property'], list: true }
+      properties: { type: ['Property', 'SpreadElement'], list: true }
     }
   },
   Property: {
     extends: { type: ['Node'] },
     properties: {
-      key: { type: ['Literal', 'Identifier'] },
+      key: { type: ['Expression'] },
       value: { type: ['Expression'] },
-      kind: { type: ['string'] }
+      kind: { type: ['string'] },
+      method: { type: ['boolean'] },
+      shorthand: { type: ['boolean'] },
+      computed: { type: ['boolean'] }
     }
   },
   FunctionExpression: {
     extends: { type: ['Function', 'Expression'] },
+  },
+  ArrowFunctionExpression: {
+    extends: { type: ['Function', 'Expression'] },
+    properties: {
+      body: { type: ['FunctionBody', 'Expression'] },
+      expression: { type: ['boolean'] }
+    }
+  },
+  YieldExpression: {
+    extends: { type: ['Expression'] },
+    properties: {
+      argument: { type: ['Expression', null] },
+      delegate: { type: ['boolean'] }
+    }
+  },
+  TemplateLiteral: {
+    extends: { type: ['Expression'] },
+    properties: {
+      quasis: { type: ['TemplateElement'], list: true },
+      expressions: { type: ['Expression'], list: true }
+    }
+  },
+  TaggedTemplateExpression: {
+    extends: { type: ['Expression'] },
+    properties: {
+      tag: { type: ['Expression'] },
+      quasi: { type: ['TemplateLiteral'] }
+    }
+  },
+  TemplateElement: {
+    extends: { type: ['Node'] },
+    properties: {
+      tail: { type: ['boolean'] },
+      value: { type: ['object'] }
+    }
   },
   UnaryExpression: {
     extends: { type: ['Expression'] },
@@ -266,7 +324,7 @@ const Type = {
   MemberExpression: {
     extends: { type: ['Expression'] },
     properties: {
-      object: { type: ['Expression'] },
+      object: { type: ['Expression', 'Super'] },
       property: { type: ['Expression'] },
       computed: { type: ['boolean'] }
     }
@@ -282,15 +340,15 @@ const Type = {
   CallExpression: {
     extends: { type: ['Expression'] },
     properties: {
-      callee: { type: ['Expression'] },
-      arguments: { type: ['Expression'], list: true }
+      callee: { type: ['Expression', 'Super'] },
+      arguments: { type: ['Expression', 'SpreadElement'], list: true }
     }
   },
   NewExpression: {
     extends: { type: ['Expression'] },
     properties: {
       callee: { type: ['Expression'] },
-      arguments: { type: ['Expression'], list: true }
+      arguments: { type: ['Expression', 'SpreadElement'], list: true }
     }
   },
   SequenceExpression: {
@@ -300,7 +358,160 @@ const Type = {
     }
   },
   Pattern: {
-    extends: { type: ['Node'] }
+    extends: { type: ['Node'] },
+    properties: {
+
+    }
+  },
+  SpreadElement: {
+    extends: { type: ['Node'] },
+    properties: {
+      argument: { type: ['Expression'] }
+    }
+  },
+  ArrayPattern: {
+    extends: { type: ['Pattern'] },
+    properties: {
+      elements: { type: ['Pattern', null], list: true }
+    }
+  },
+  ObjectPattern: {
+    extends: { type: ['Pattern'] },
+    properties: {
+      properties: { type: ['AssignmentProperty', 'RestElement'], list: true }
+    }
+  },
+  RestElement: {
+    extends: { type: ['Pattern'] },
+    properties: {
+      argument: { type: ['Pattern'] }
+    }
+  },
+  AssignmentPattern: {
+    extends: { type: ['Pattern'] },
+    properties: {
+      left: { type: ['Pattern'] },
+      right: { type: ['Expression'] }
+    }
+  },
+  Class: {
+    extends: { type: ['Node'] },
+    properties: {
+      id: { type: ['Identifier', null] },
+      superClass: { type: ['Expression', null] },
+      body: { type: ['ClassBody'] }
+    }
+  },
+  ClassBody: {
+    extends: { type: ['Node'] },
+    properties: {
+      body: { type: ['MethodDefinition'], list: true }
+    }
+  },
+  MethodDefinition: {
+    extends: { type: ['Node'] },
+    properties: {
+      key: { type: ['Expression'] },
+      value: FunctionExpression;
+      kind: "constructor" | "method" | "get" | "set";
+      computed: boolean;
+      static: boolean;
+    }
+  },
+  ClassDeclaration: {
+    extends: { type: ['Class', 'Declaration'] },
+    properties: {
+      id: { type: ['Identifier'] }
+    }
+  },
+  ClassExpression: {
+    extends: { type: ['Class', 'Expression'] },
+    properties: {
+
+    }
+  },
+  MetaProperty: {
+    extends: { type: ['Expression'] },
+    properties: {
+      meta: { type: ['Identifier'] },
+      property: { type: ['Identifier'] }
+    }
+  },
+  ModuleDeclaration: {
+    extends: ['Node'],
+    properties: {
+
+    }
+  },
+  ModuleSpecifier: {
+    extends: { type: ['Node'] },
+    properties: {
+      local: { type: ['Identifier'] }
+    }
+  },
+  ImportDeclaration: {
+    extends: { type: ['ModuleDeclaration'] },
+    properties: {
+      specifiers: { type: ['ImportSpecifier', 'ImportDefaultSpecifier', 'ImportNamespaceSpecifier'], list: true },
+      source: { type: ['Literal'] }
+    }
+  },
+  ImportSpecifier: {
+    extends: { type: ['ModuleSpecifier'] },
+    properties: {
+      imported: { type: ['Identifier'] },
+    }
+  },
+  ImportDefaultSpecifier: {
+    extends: { type: ['ModuleSpecifier'] },
+    properties: {
+
+    }
+  },
+  ImportNamespaceSpecifier: {
+    extends: { type: ['ModuleSpecifier'] },
+    properties: {
+
+    }
+  },
+  ExportNamedDeclaration: {
+    extends: { type: ['Node'] },
+    properties: {
+      declaration: { type: ['Declaration', null] },
+      specifiers: { type: ['ExportSpecifier'], list: true },
+      source: { type: ['Literal', null] }
+    }
+  },
+  ExportSpecifier: {
+    extends: { type: ['ExportSpecifier'] },
+    properties: {
+      exported: { type: ['Identifier'] }
+    }
+  },
+  ExportDefaultDeclaration: {
+    extends: { type: ['ModuleDeclaration'] },
+    properties: {
+      declaration: { type: ['FunctionDeclaration', 'ClassDeclaration', 'Expression'] }
+    }
+  },
+  ExportAllDeclaration: {
+    extends: { type: ['ModuleDeclaration'] },
+    properties: {
+      source: { type: ['Literal'] },
+      exported: { type: ['Identifier', null] }
+    }
+  },
+  AwaitExpression: {
+    extends: { type: ['Expression'] },
+    properties: {
+      argument: { type: ['Expression'] },
+    }
+  },
+  ImportExpression: {
+    extends: { type: ['Expression'] },
+    properties: {
+      source: { type: ['Expression'] }
+    }
   }
 }
 
