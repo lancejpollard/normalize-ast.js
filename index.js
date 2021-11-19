@@ -142,7 +142,7 @@ function buildNormalizePropertyType(type, def, property, propertyType) {
 
 function buildNormalizeTypeFunction(type, def) {
   return function(node, scope) {
-    const object = {}
+    const object = { type }
     const expressions = []
     Object.keys(def.properties).forEach(name => {
       const property = def.properties[name]
@@ -163,7 +163,7 @@ function buildNormalizeTypeFunction(type, def) {
         expressions.push(...normalizedExpressions)
       }
     })
-    return [create[node.type](object), expressions]
+    return [object, expressions]
   }
 }
 
