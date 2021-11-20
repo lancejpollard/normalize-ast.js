@@ -340,7 +340,7 @@ function normalize_ForStatement(node, scope) {
   if (!Array.isArray(init)) init = [init]
 
   if (body.type !== 'BlockStatement') {
-    body = createBlockStatement([body])
+    body = createBlockStatement(Array.isArray(body) ? body : [body])
   }
 
   const block = createBlockStatement([
@@ -678,6 +678,14 @@ function normalize_AssignmentExpression(node, scope) {
     ...rightExps
   ]
 
+  let furthestRight = Array.isArray(right) ? right[0] : right
+  let rights = Array.isArray(right) ? right.slice(1) : []
+  let lefts = [left]
+  while (furthestRight.type === 'AssignmentExpression') {
+    lefts.push(furthestRight.left)
+    furthestRight = furthestRight.right
+  }
+
   if (left.type === 'ArrayPattern') {
     const assignments = []
     left.elements.forEach(el => {
@@ -695,9 +703,14 @@ function normalize_AssignmentExpression(node, scope) {
       exps
     ]
   } else {
-    const assignment = createAssignmentExpression(left, right, node.operator)
+    const assignments = []
+    lefts.forEach(l => {
+      const assignment = createAssignmentExpression(l, furthestRight, node.operator)
+      assignments.push(assignment)
+    })
+    assignments.push(...rights)
     return [
-      assignment,
+      assignments,
       exps
     ]
   }
