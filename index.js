@@ -334,7 +334,7 @@ function normalize_DoWhileStatement(node, scope) {
 function normalize_ForStatement(node, scope) {
   let [init, initExps] = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope)
   const [test, testExps] = normalizeProperty(node.type, 'test', node.test?.type ?? null, node.test, scope, true)
-  const [update, updateExps] = normalizeProperty(node.type, 'update', node.update.type, node.update, scope)
+  let [update, updateExps] = normalizeProperty(node.type, 'update', node.update.type, node.update, scope)
   let [body, bodyExps] = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
 
   if (!Array.isArray(init)) init = [init]
@@ -342,6 +342,8 @@ function normalize_ForStatement(node, scope) {
   if (body.type !== 'BlockStatement') {
     body = createBlockStatement(Array.isArray(body) ? body : [body])
   }
+
+  if (!Array.isArray(update)) update = [update]
 
   const block = createBlockStatement([
     ...initExps,
@@ -354,7 +356,7 @@ function normalize_ForStatement(node, scope) {
           createBlockStatement([
             ...body.body,
             ...updateExps,
-            update
+            ...update
           ]),
           createBlockStatement([
             createBreakStatement()
