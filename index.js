@@ -162,6 +162,7 @@ function normalize_Program(node, scope) {
   node.body.forEach(n => {
     const [normalizedNode, normalizedExpressions]
       = normalizeProperty(node.type, 'body', n.type, n, scope)
+    if (normalizedNode.type === 'EmptyStatement') return
     body.push(...normalizedExpressions)
     if (Array.isArray(normalizedNode)) {
       body.push(...normalizedNode)
@@ -189,6 +190,7 @@ function normalize_BlockStatement(node, scope) {
 
   node.body.forEach(bd => {
     const [data, expressions] = normalizeProperty(node.type, 'body', bd.type, bd, scope)
+    if (data.type === 'EmptyStatement') return
     body.push(...expressions)
     if (Array.isArray(data)) {
       body.push(...data)
@@ -208,7 +210,7 @@ function normalize_FunctionBody(node, scope) {
 }
 
 function normalize_EmptyStatement(node, scope) {
-
+  return [node, []]
 }
 
 function normalize_DebuggerStatement(node, scope) {
