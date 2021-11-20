@@ -442,10 +442,10 @@ function normalize_VariableDeclarator(node, scope) {
   exps.push(...initExps)
   const declarators = []
   if (id.type === 'ArrayPattern') {
-    id.elements.forEach(i => {
+    id.elements.forEach((i, _i) => {
       declarators.push(
         createVariableDeclarator(i,
-          createMemberExpression(init, i)
+          createMemberExpression(init, createLiteral(_i))
         )
       )
     })
@@ -672,11 +672,12 @@ function normalize_BinaryExpression(node, scope, isolate) {
 
 function normalize_AssignmentExpression(node, scope) {
   const [left, leftExps] = normalizeProperty(node.type, 'left', node.left.type, node.left, scope)
-  const [right, rightExps] = normalizeProperty(node.type, 'right', node.right.type, node.right, scope)
+  let [right, rightExps] = normalizeProperty(node.type, 'right', node.right.type, node.right, scope)
   const exps = [
     ...leftExps,
     ...rightExps
   ]
+
   if (left.type === 'ArrayPattern') {
     const assignments = []
     left.elements.forEach(el => {
@@ -688,42 +689,18 @@ function normalize_AssignmentExpression(node, scope) {
         )
       )
     })
+
     return [
       assignments,
       exps
     ]
   } else {
+    const assignment = createAssignmentExpression(left, right, node.operator)
     return [
-      createAssignmentExpression(left, right, node.operator),
+      assignment,
       exps
     ]
   }
-
-  // if node.left.type === 'ArrayPattern'
-  // const [left, leftExps] = normalizeExpression(node.left, scope)
-  // const [right, rightExps] = normalizeExpression(node.right, scope)
-  // output.push(...leftExps)
-  // output.push(...rightExps)
-  // if (Array.isArray(left)) {
-  //   const name = `tmp${scope.index++}`
-  //   output.push(createExpressionStatement(
-  //     createAssignmentExpression(
-  //       createIdentifier(name),
-  //       right
-  //     )
-  //   ))
-  //   left.forEach(l => {
-  //     output.push(createExpressionStatement(
-  //       createAssignmentExpression(l,
-  //         createMemberExpression(
-  //           createIdentifier(name), l))
-  //     ))
-  //   })
-  // } else {
-  //   output.push(createExpressionStatement(
-  //     createAssignmentExpression(left, right)
-  //   ))
-  // }
 }
 
 function normalize_LogicalExpression(node, scope, isolate) {
