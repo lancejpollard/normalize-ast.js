@@ -224,7 +224,7 @@ function normalize_WithStatement(node, scope) {
 function normalize_ReturnStatement(node, scope) {
   const exps = []
   const [argument, argumentExps]
-    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope, true)
+    = normalizeProperty(node.type, 'argument', node.argument?.type ?? null, node.argument, scope, true)
   exps.push(...argumentExps)
   return [
     createReturnStatement(argument),
@@ -249,7 +249,7 @@ function normalize_BreakStatement(node, scope) {
 }
 
 function normalize_ContinueStatement(node, scope) {
-
+  return [node, []]
 }
 
 function normalize_IfStatement(node, scope) {
@@ -330,22 +330,49 @@ function normalize_WhileStatement(node, scope) {
 }
 
 function normalize_DoWhileStatement(node, scope) {
+  const [test, testExps]
+    = normalizeProperty(node.type, 'test', node.test.type, node.test, scope, true)
+  const [body, bodyExps]
+    = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
 
+  body.body.unshift(...bodyExps)
+
+  const newBody = [
+    ...testExps,
+    createIfStatement(
+      test,
+      body,
+      createBlockStatement([
+        createBreakStatement()
+      ])
+    )
+  ]
+
+  const whileStatement = createWhileStatement(createLiteral(true), newBody)
+  return [whileStatement, []]
 }
 
 function normalize_ForStatement(node, scope) {
   let [init, initExps] = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope)
   const [test, testExps] = normalizeProperty(node.type, 'test', node.test?.type ?? null, node.test, scope, true)
-  let [update, updateExps] = normalizeProperty(node.type, 'update', node.update.type, node.update, scope)
+  let [update, updateExps] = normalizeProperty(node.type, 'update', node.update?.type ?? null, node.update, scope)
   let [body, bodyExps] = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
 
-  if (!Array.isArray(init)) init = [init]
+  if (init) {
+    if (!Array.isArray(init)) init = [init]
+  } else {
+    init = []
+  }
+
+  if (update) {
+    if (!Array.isArray(update)) update = [update]
+  } else {
+    update = []
+  }
 
   if (body.type !== 'BlockStatement') {
     body = createBlockStatement(Array.isArray(body) ? body : [body])
   }
-
-  if (!Array.isArray(update)) update = [update]
 
   const block = createBlockStatement([
     ...initExps,
@@ -788,30 +815,24 @@ function normalize_ConditionalExpression(node, scope, isolate) {
   exps.push(...consequentExps)
   exps.push(...alternateExps)
 
-  const conditional = createConditionalExpression(
+  const name = `tmp${scope.index++}`
+
+  const conditional = createIfStatement(
     test,
-    consequent,
-    alternate
+    createBlockStatement([createAssignmentExpression(createIdentifier(name), consequent)]),
+    createBlockStatement([createAssignmentExpression(createIdentifier(name), alternate)])
   )
 
-  if (isolate) {
-    const name = `tmp${scope.index++}`
-    exps.push(
-      createVariable('const',
-        createIdentifier(name),
-        conditional
-      )
-    )
-    return [
-      createIdentifier(name),
-      exps
-    ]
-  } else {
-    return [
-      conditional,
-      exps
-    ]
-  }
+  exps.push(
+    createVariable('let',
+      createIdentifier(name)
+    ),
+    conditional
+  )
+  return [
+    createIdentifier(name),
+    exps
+  ]
 }
 
 function normalize_CallExpression(node, scope, isolate) {
