@@ -1,5 +1,6 @@
 
 module.exports = {
+  createSwitchStatement,
   createProgram,
   createVariable,
   createArrayPattern,
@@ -39,7 +40,24 @@ module.exports = {
   createTemplateLiteral,
   createNewExpression,
   createUnaryExpression,
-  createUpdateExpression
+  createUpdateExpression,
+  createSwitchCase,
+}
+
+function createSwitchCase(test, consequent) {
+  return {
+    type: 'SwitchCase',
+    test,
+    consequent
+  }
+}
+
+function createSwitchStatement(discriminant, cases) {
+  return {
+    type: 'SwitchStatement',
+    discriminant,
+    cases
+  }
 }
 
 function createUpdateExpression(argument, operator, prefix) {

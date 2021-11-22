@@ -2,6 +2,8 @@
 const acorn = require('acorn')
 const print = require('./print')
 const {
+  createSwitchCase,
+  createSwitchStatement,
   createProgram,
   createVariable,
   createArrayPattern,
@@ -256,13 +258,16 @@ function normalize_IfStatement(node, scope) {
   const top = []
   const [test, testExps] = normalizeProperty(node.type, 'test', node.test.type, node.test, scope, true)
   top.push(...testExps)
+
   let [consequent, consequentExps]
     = normalizeProperty(node.type, 'consequent', node.consequent.type, node.consequent, scope)
+
   if (consequent.type !== 'BlockStatement') {
-    consequent = createBlockStatement(consequent)
+    consequent = createBlockStatement([consequent])
   }
 
   let alternate = null
+  let alternateExps
   if (node.alternate) {
     [alternate, alternateExps]
       = normalizeProperty(node.type, 'alternate', node.alternate.type, node.alternate, scope)
@@ -278,12 +283,41 @@ function normalize_IfStatement(node, scope) {
 }
 
 function normalize_SwitchStatement(node, scope) {
-  const discriminant = normalizeExpression(node.discriminant)
-  return []
+  const exps = []
+  const [discriminant, discriminantExps]
+    = normalizeProperty(node.type, 'discriminant', node.discriminant.type, node.discriminant, scope)
+  exps.push(...discriminantExps)
+  const cases = []
+  node.cases.forEach(cse => {
+    const [c, caseExps] = normalizeProperty(node.type, 'cases', cse.type, cse, scope)
+    cases.push(c)
+    exps.push(...caseExps)
+  })
+  return [
+    createSwitchStatement(discriminant, cases),
+    exps
+  ]
 }
 
 function normalize_SwitchCase(node, scope) {
+  const exps = []
 
+  const consequent = []
+
+  node.consequent.forEach(c => {
+    const [cons, consExps] = normalizeProperty(node.type, 'consequent', c.type, c, scope)
+    consequent.push(cons)
+    exps.push(...consExps)
+  })
+  const [test, testExps]
+    = normalizeProperty(node.type, 'test', node.test.type, node.test, scope)
+
+  exps.push(...testExps)
+
+  return [
+    createSwitchCase(test, consequent),
+    exps
+  ]
 }
 
 function normalize_ThrowStatement(node, scope) {
@@ -468,7 +502,7 @@ function normalize_VariableDeclaration(node, scope) {
 function normalize_VariableDeclarator(node, scope) {
   const exps = []
   const [id, idExps] = normalizeProperty(node.type, 'id', node.id.type, node.id, scope)
-  const [init, initExps] = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope)
+  const [init, initExps] = normalizeProperty(node.type, 'init', node.init?.type ?? null, node.init, scope, true)
   exps.push(...idExps)
   exps.push(...initExps)
   const declarators = []
@@ -496,19 +530,34 @@ function normalize_ThisExpression(node, scope) {
   ]
 }
 
-function normalize_ArrayExpression(node, scope) {
+function normalize_ArrayExpression(node, scope, isolate) {
   const exps = []
   const array = []
   node.elements.forEach(element => {
-    const [el, elExps] = normalizeProperty(node.type, 'elements', element.type, element, scope)
+    const [el, elExps] = normalizeProperty(node.type, 'elements', element.type, element, scope, isolate)
     array.push(el)
     exps.push(...elExps)
   })
 
-  return [
-    createArrayExpression(array),
-    exps
-  ]
+  const arrayExp = createArrayExpression(array)
+  if (isolate) {
+    const name = `tmp${scope.index++}`
+    exps.push(
+      createVariable('const',
+        createIdentifier(name),
+        arrayExp
+      )
+    )
+    return [
+      createIdentifier(name),
+      exps
+    ]
+  } else {
+    return [
+      arrayExp,
+      exps
+    ]
+  }
 }
 
 function normalize_ObjectExpression(node, scope, isolate) {
@@ -631,7 +680,7 @@ function normalize_TemplateElement(node, scope) {
 function normalize_UnaryExpression(node, scope, isolate) {
   const exps = []
   const [argument, argumentExps]
-    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope)
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope, true)
 
   exps.push(...argumentExps)
 
@@ -701,21 +750,25 @@ function normalize_BinaryExpression(node, scope, isolate) {
   }
 }
 
-function normalize_AssignmentExpression(node, scope) {
+function normalize_AssignmentExpression(node, scope, isolate) {
   const [left, leftExps] = normalizeProperty(node.type, 'left', node.left.type, node.left, scope)
-  let [right, rightExps] = normalizeProperty(node.type, 'right', node.right.type, node.right, scope)
+
+  let values = [left]
+  let operators = [node.operator]
+  let right = node.right
+  while (right.type === 'AssignmentExpression') {
+    values.push(right.left)
+    operators.push(right.operator)
+    right = right.right
+  }
+
+  let [furthestRight, furthestRightExps] = normalizeProperty(node.type, 'right', right.type, right, scope, true)
+  values.push(furthestRight)
+
   const exps = [
     ...leftExps,
-    ...rightExps
+    ...furthestRightExps
   ]
-
-  let furthestRight = Array.isArray(right) ? right[0] : right
-  let rights = Array.isArray(right) ? right.slice(1) : []
-  let lefts = [left]
-  while (furthestRight.type === 'AssignmentExpression') {
-    lefts.push(furthestRight.left)
-    furthestRight = furthestRight.right
-  }
 
   if (left.type === 'ArrayPattern') {
     const assignments = []
@@ -734,15 +787,26 @@ function normalize_AssignmentExpression(node, scope) {
       exps
     ]
   } else {
-    const assignments = []
-    lefts.forEach(l => {
-      const assignment = createAssignmentExpression(l, furthestRight, node.operator)
+    let assignments = []
+    let i = 0
+    let n = values.length - 1
+    while (i < n) {
+      let l = values[i]
+      let r = values[i + 1]
+      const assignment = createAssignmentExpression(l, r, operators[i])
       assignments.push(assignment)
-    })
-    assignments.push(...rights)
+      i++
+    }
+    assignments = assignments.reverse()
+    let assignment
+    if (isolate) {
+      assignment = assignments[assignments.length - 1].left
+    } else {
+      assignment = assignments.pop()
+    }
     return [
-      assignments,
-      exps
+      assignment,
+      exps.concat(assignments)
     ]
   }
 }

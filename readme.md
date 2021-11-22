@@ -76,3 +76,18 @@ const { a, b } = z
 const a = z.a
 const b = z.b
 ```
+
+```js
+// before
+if ((match = x = matchers.rgb.exec(color))) {
+  x += 1
+}
+
+// after
+const tmp = matchers.rgb.exec(color)
+x = tmp
+match = tmp
+if (tmp) {
+  x += 1
+}
+```

@@ -111,11 +111,40 @@ function printBodyNode(node) {
 
     TaggedTemplateExpression() {
       text.push(printTaggedTemplateExpression(node).join('\n'))
+    },
+
+    SwitchStatement() {
+      text.push(printSwitchStatement(node).join('\n'))
     }
   }
 
   call(printers, node.type)
 
+  return text
+}
+
+function printSwitchStatement(node) {
+  const text = []
+  const discriminant = printExpression(node.discriminant)
+  text.push(`switch (${discriminant}) {`)
+  node.cases.forEach(_case => {
+    printSwitchCase(_case).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
+  text.push('}')
+  return text
+}
+
+function printSwitchCase(node) {
+  const text = []
+  const test = printExpression(node.test)
+  text.push(`case ${test}:`)
+  node.consequent.forEach(consequent => {
+    printBodyNode(consequent).forEach(line => {
+      text.push(`  ${line}`)
+    })
+  })
   return text
 }
 
@@ -481,6 +510,10 @@ function printVariableDeclarator(parent, node) {
 
     FunctionExpression() {
       text.push(printFunctionDeclaration(node.init).join('\n'))
+    },
+
+    AssignmentExpression() {
+      text.push(printAssignmentExpression(node.init).join('\n'))
     }
   }
 
@@ -518,7 +551,7 @@ function printExpressionStatement(node) {
     AssignmentExpression() {
       const left = printExpression(node.expression.left)
       const right = printExpression(node.expression.right)
-      text.push(`${left} = ${right}`)
+      text.push(`${left} ${node.expression.operator} ${right}`)
     },
 
     MemberExpression() {
@@ -653,6 +686,10 @@ function printExpression(node) {
 
     NewExpression() {
       return printNewExpression(node).join('\n')
+    },
+
+    UpdateExpression() {
+      return printUpdateExpression(node).join('\n')
     }
   }
 
