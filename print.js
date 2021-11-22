@@ -514,6 +514,10 @@ function printVariableDeclarator(parent, node) {
 
     AssignmentExpression() {
       text.push(printAssignmentExpression(node.init).join('\n'))
+    },
+
+    UpdateExpression() {
+      text.push(printUpdateExpression(node.init).join('\n'))
     }
   }
 

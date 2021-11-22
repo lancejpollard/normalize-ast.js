@@ -1,5 +1,7 @@
 
 module.exports = {
+  createCatchClause,
+  createTryStatement,
   createSwitchStatement,
   createProgram,
   createVariable,
@@ -42,6 +44,23 @@ module.exports = {
   createUnaryExpression,
   createUpdateExpression,
   createSwitchCase,
+}
+
+function createCatchClause(param, body) {
+  return {
+    type: 'CatchClause',
+    param,
+    body
+  }
+}
+
+function createTryStatement(block, handler, finalizer) {
+  return {
+    type: 'TryStatement',
+    block,
+    handler,
+    finalizer
+  }
 }
 
 function createSwitchCase(test, consequent) {

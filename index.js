@@ -2,6 +2,8 @@
 const acorn = require('acorn')
 const print = require('./print')
 const {
+  createCatchClause,
+  createTryStatement,
   createSwitchCase,
   createSwitchStatement,
   createProgram,
@@ -274,7 +276,7 @@ function normalize_IfStatement(node, scope) {
     if (alternate.type === 'IfStatement') {
       top.push(...alternateExps)
     } else if (alternate.type !== 'BlockStatement') {
-      alternate = createBlockStatement(alternate)
+      alternate = createBlockStatement([alternate])
     }
   }
 
@@ -306,11 +308,15 @@ function normalize_SwitchCase(node, scope) {
 
   node.consequent.forEach(c => {
     const [cons, consExps] = normalizeProperty(node.type, 'consequent', c.type, c, scope)
-    consequent.push(cons)
+    if (Array.isArray(cons)) {
+      consequent.push(...cons)
+    } else {
+      consequent.push(cons)
+    }
     exps.push(...consExps)
   })
   const [test, testExps]
-    = normalizeProperty(node.type, 'test', node.test.type, node.test, scope)
+    = normalizeProperty(node.type, 'test', node.test?.type ?? null, node.test, scope)
 
   exps.push(...testExps)
 
@@ -329,11 +335,35 @@ function normalize_ThrowStatement(node, scope) {
 }
 
 function normalize_TryStatement(node, scope) {
+  const exps = []
 
+  const [block, blockExps]
+    = normalizeProperty(node.type, 'block', node.block.type, node.block, scope)
+  const [handler, handlerExps]
+    = normalizeProperty(node.type, 'handler', node.handler.type, node.handler, scope)
+  const [finalizer, finalizerExps]
+    = normalizeProperty(node.type, 'finalizer', node.finalizer?.type ?? null, node.finalizer, scope)
+
+  return [
+    createTryStatement(block, handler, finalizer),
+    exps
+  ]
 }
 
 function normalize_CatchClause(node, scope) {
+  const exps = []
 
+  const [param]
+    = normalizeProperty(node.type, 'param', node.param?.type ?? null, node.param, scope)
+  const [body, bodyExps]
+    = normalizeProperty(node.type, 'body', node.body?.type, node.body, scope)
+
+  exps.push(...bodyExps)
+
+  return [
+    createCatchClause(param, body),
+    exps
+  ]
 }
 
 function normalize_BigIntLiteral(node, scope) {
@@ -343,8 +373,12 @@ function normalize_BigIntLiteral(node, scope) {
 function normalize_WhileStatement(node, scope) {
   const [test, testExps]
     = normalizeProperty(node.type, 'test', node.test.type, node.test, scope, true)
-  const [body, bodyExps]
+  let [body, bodyExps]
     = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
+
+  if (body.type !== 'BlockStatement') {
+    body = createBlockStatement([body])
+  }
 
   body.body.unshift(...bodyExps)
 
@@ -445,7 +479,7 @@ function normalize_ForInStatement(node, scope) {
   exps.push(...leftExps)
   exps.push(...rightExps)
 
-  const forInStatement = createForInStatement(left[0], right, body)
+  const forInStatement = createForInStatement(Array.isArray(left) ? left[0] : left, right, body)
   return [forInStatement, exps]
 }
 
@@ -705,13 +739,30 @@ function normalize_UnaryExpression(node, scope, isolate) {
   }
 }
 
-function normalize_UpdateExpression(node, scope) {
+function normalize_UpdateExpression(node, scope, isolate) {
   const [argument, argumentExps]
-    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope)
-  return [
-    createUpdateExpression(argument, node.operator, node.prefix),
-    argumentExps
-  ]
+    = normalizeProperty(node.type, 'argument', node.argument.type, node.argument, scope, true)
+
+  const update = createUpdateExpression(argument, node.operator, node.prefix)
+
+  if (isolate) {
+    const name = `tmp${scope.index++}`
+    argumentExps.push(
+      createVariable('const',
+        createIdentifier(name),
+        update
+      )
+    )
+    return [
+      createIdentifier(name),
+      argumentExps
+    ]
+  } else {
+    return [
+      update,
+      argumentExps
+    ]
+  }
 }
 
 function normalize_BinaryExpression(node, scope, isolate) {

@@ -189,8 +189,27 @@ print`
 //   color = names[color];
 //   named = true;
 // }
-if (tinycolor.isReadable(baseColor, bestColor, {"level":level,"size":size}) || !includeFallbackColors) {
-  console.log(bestColor)
+// if (tinycolor.isReadable(baseColor, bestColor, {"level":level,"size":size}) || !includeFallbackColors) {
+//   console.log(bestColor)
+// }
+// if ((a = b = c) || (d = e = f)) {
+//   console.log('foo')
+// }
+
+// for (componentId in frame.components) {
+//   console.log('foo')
+// }
+for (y = 0; y < height; y++) {
+  for (x = 0; x < width; x++) {
+    Y = data[i++];
+
+    imageDataArray[j++] = Y;
+    imageDataArray[j++] = Y;
+    imageDataArray[j++] = Y;
+    if (formatAsRGBA) {
+      imageDataArray[j++] = 255;
+    }
+  }
 }
 `
 
