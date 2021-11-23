@@ -2,6 +2,7 @@
 const acorn = require('acorn')
 const print = require('./print')
 const {
+  createObjectPattern,
   createCatchClause,
   createTryStatement,
   createSwitchCase,
@@ -540,11 +541,21 @@ function normalize_VariableDeclarator(node, scope) {
   exps.push(...idExps)
   exps.push(...initExps)
   const declarators = []
+  // TODO: handle nested of these more carefully.
   if (id.type === 'ArrayPattern') {
     id.elements.forEach((i, _i) => {
       declarators.push(
         createVariableDeclarator(i,
-          createMemberExpression(init, createLiteral(_i))
+          createMemberExpression(init, createLiteral(_i), true)
+        )
+      )
+    })
+  // TODO: handle nested of these more carefully.
+  } else if (id.type === 'ObjectPattern') {
+    id.properties.forEach((i, _i) => {
+      declarators.push(
+        createVariableDeclarator(i.value,
+          createMemberExpression(init, i.key)
         )
       )
     })
@@ -626,6 +637,8 @@ function normalize_ObjectExpression(node, scope, isolate) {
 function normalize_Property(node, scope) {
   if (node.type === 'SpreadElement') {
     return normalizeSpreadElement(node, scope)
+  } else if (node.type === 'ObjectPattern') {
+    throw new Error
   }
   const exps = []
   const [key, keyExps] = normalizeProperty(node.type, 'key', node.key.type, node.key, scope)
@@ -1040,7 +1053,18 @@ function normalize_ArrayPattern(node, scope) {
 }
 
 function normalize_ObjectPattern(node, scope) {
-
+  const exps = []
+  const properties = []
+  node.properties.forEach(p => {
+    const [prop, propExps]
+      = normalizeProperty(node.type, 'properties', p.type, p, scope)
+    exps.push(...propExps)
+    properties.push(prop)
+  })
+  return [
+    createObjectPattern(properties),
+    exps
+  ]
 }
 
 function normalize_RestElement(node, scope) {
@@ -1088,12 +1112,13 @@ function normalize_ClassDeclaration(node, scope) {
 
   const [id, idExps]
     = normalizeProperty(node.type, 'id', node.id?.type ?? null, node.id, scope)
-  const superClass
+  const [superClass, superClassExps]
     = normalizeProperty(node.type, 'superClass', node.superClass?.type ?? null, node.superClass, scope)
   const [body, bodyExps]
     = normalizeProperty(node.type, 'body', node.body.type, node.body, scope)
 
   exps.push(...idExps)
+  exps.push(...superClassExps)
   exps.push(...bodyExps)
 
   return [createClassDeclaration(id, superClass, body), exps]

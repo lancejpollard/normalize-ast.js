@@ -432,7 +432,24 @@ function printVariableDeclarator(parent, node) {
       text.push(parent.kind)
       text.push(` `)
       text.push(node.id.name)
-    }
+    },
+
+    ObjectPattern() {
+      text.push(parent.kind)
+      text.push(` `)
+      text.push(`{ `)
+      const props = []
+      node.id.properties.forEach(p => {
+        const prop = printProperty(p).join('\n')
+        props.push(prop)
+      })
+      text.push(props.join(', '))
+      text.push(` }`)
+    },
+
+    // Property() {
+    //   text.push(printProperty(p).join('\n'))
+    // }
   }
 
   const printersInit = {
@@ -694,10 +711,44 @@ function printExpression(node) {
 
     UpdateExpression() {
       return printUpdateExpression(node).join('\n')
+    },
+
+    ObjectPattern() {
+      return printObjectPattern(node).join('\n')
+    },
+
+    Property() {
+      return printProperty(node).join('\n')
+    },
+
+    ArrayPattern() {
+      return printArrayPattern(node).join('\n')
     }
   }
 
   return call(printers, node.type)
+}
+
+function printArrayPattern(node) {
+  const text = []
+  const elems = []
+  node.elements.forEach(e => {
+    const elem = printExpression(e)
+    elems.push(elem)
+  })
+  text.push(`[ ${elems.join(', ')} ]`)
+  return text
+}
+
+function printObjectPattern(node) {
+  const text = []
+  const props = []
+  node.properties.forEach(p => {
+    const prop = printExpression(p)
+    props.push(prop)
+  })
+  text.push(`{ ${props.join(', ')} }`)
+  return text
 }
 
 function printUnaryExpression(node) {

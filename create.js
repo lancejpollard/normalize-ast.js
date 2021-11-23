@@ -44,6 +44,14 @@ module.exports = {
   createUnaryExpression,
   createUpdateExpression,
   createSwitchCase,
+  createObjectPattern
+}
+
+function createObjectPattern(properties) {
+  return {
+    type: 'ObjectPattern',
+    properties
+  }
 }
 
 function createCatchClause(param, body) {
@@ -277,12 +285,14 @@ function createCallExpression(_callee, args = []) {
   }
 }
 
-function createFunctionDeclaration(id, params, body) {
+function createFunctionDeclaration(id, params = [], body = [], { async = false, generator = false } = {}) {
   return {
     type: 'FunctionDeclaration',
     id,
     params,
-    body
+    body,
+    async,
+    generator
   }
 }
 
