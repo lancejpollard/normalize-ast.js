@@ -33,6 +33,10 @@ function printBodyNode(node) {
       text.push(...printIfStatement(node))
     },
 
+    DebuggerStatement() {
+      text.push(`debugger`)
+    },
+
     ForInStatement() {
       text.push(...printForInStatement(node))
     },
@@ -115,7 +119,26 @@ function printBodyNode(node) {
 
     SwitchStatement() {
       text.push(printSwitchStatement(node).join('\n'))
-    }
+    },
+
+    ThrowStatement() {
+      text.push(printThrowStatement(node).join('\n'))
+    },
+
+    TryStatement() {
+      text.push(printTryStatement(node).join('\n'))
+    },
+
+    BinaryExpression() {
+      console.log(node)
+      const left = printExpression(node.left)
+      const right = printExpression(node.right)
+      text.push(`${left} ${node.operator} ${right}`)
+    },
+
+    UnaryExpression() {
+      text.push(printUnaryExpression(node).join('\n'))
+    },
   }
 
   call(printers, node.type)
@@ -400,7 +423,10 @@ function printFunctionDeclaration(node) {
   const text = []
   const id = node.id ? printExpression(node.id) : ''
   const params = node.params.map(param => printExpression(param))
+  // console.log(JSON.stringify(node, null, 2))
   const body = node.body.body.map(x => printBodyNode(x).join('\n'))
+    .join('\n')
+    .split(/\n/)
     .map(line => `  ${line}`)
   text.push(`function ${id}(${params.join(', ')}) {`)
   text.push(...body)
@@ -471,6 +497,10 @@ function printVariableDeclarator(parent, node) {
       const _callee = printExpression(node.init.callee)
       const args = node.init.arguments.map(arg => printExpression(arg))
       text.push(`${_callee}(${args.join(', ')})`)
+    },
+
+    ReturnStatement() {
+      text.push(...printReturnStatement(node.init))
     },
 
     Literal() {
@@ -614,6 +644,16 @@ function printThrowStatement(node) {
   return [`throw ${argument}`]
 }
 
+function printTryStatement(node) {
+  return [
+    `try {`,
+    `  ${node.block.name}()`,
+    ` catch (e) {`,
+    `  ${node.handler.name}(e)`,
+    `}`,
+  ]
+}
+
 function printExpression(node) {
   const printers = {
     Identifier() {
@@ -689,6 +729,10 @@ function printExpression(node) {
       return printSpreadElement(node).join('\n')
     },
 
+    ReturnStatement() {
+      return printReturnStatement(node).join('\n')
+    },
+
     RestElement() {
       return printRestElement(node).join('\n')
     },
@@ -723,6 +767,10 @@ function printExpression(node) {
 
     ArrayPattern() {
       return printArrayPattern(node).join('\n')
+    },
+
+    FunctionDeclaration() {
+      return printFunctionDeclaration(node).join('\n')
     }
   }
 

@@ -1,5 +1,6 @@
 
 module.exports = {
+  createDebuggerStatement,
   createCatchClause,
   createTryStatement,
   createSwitchStatement,
@@ -296,12 +297,14 @@ function createFunctionDeclaration(id, params = [], body = [], { async = false, 
   }
 }
 
-function createFunctionExpression(id, params, body) {
+function createFunctionExpression(id, params = [], body = [], { async = false, generator = false } = {}) {
   return {
     type: 'FunctionExpression',
     id,
     params,
-    body
+    body,
+    async,
+    generator
   }
 }
 
@@ -408,5 +411,11 @@ function createArrayPattern(elements) {
   return {
     type: 'ArrayPattern',
     elements
+  }
+}
+
+function createDebuggerStatement() {
+  return {
+    type: 'DebuggerStatement',
   }
 }
