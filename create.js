@@ -265,7 +265,7 @@ function createLiteral(value) {
   return {
     type: 'Literal',
     value,
-    raw: typeof value === 'string' ? `'${value}'` : String(value)
+    raw: typeof value === 'string' ? `'${value}'` : typeof value === 'number' ? String(value) : JSON.stringify(value)
   }
 }
 

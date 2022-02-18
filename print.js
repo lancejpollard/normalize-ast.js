@@ -421,14 +421,14 @@ function printArrowFunctionExpression(node) {
 
 function printFunctionDeclaration(node) {
   const text = []
-  const id = node.id ? printExpression(node.id) : ''
+  const id = node.id ? ` ${printExpression(node.id)}` : ''
   const params = node.params.map(param => printExpression(param))
   // console.log(JSON.stringify(node, null, 2))
   const body = node.body.body.map(x => printBodyNode(x).join('\n'))
     .join('\n')
     .split(/\n/)
     .map(line => `  ${line}`)
-  text.push(`function ${id}(${params.join(', ')}) {`)
+  text.push(`function${id}(${params.join(', ')}) {`)
   text.push(...body)
   text.push(`}`)
   return text
@@ -647,9 +647,9 @@ function printThrowStatement(node) {
 function printTryStatement(node) {
   return [
     `try {`,
-    `  ${node.block.name}()`,
-    ` catch (e) {`,
-    `  ${node.handler.name}(e)`,
+    `  ${node.block.callee.name}()`,
+    `} catch (e) {`,
+    `  ${node.handler.callee.name}(e)`,
     `}`,
   ]
 }
@@ -803,9 +803,9 @@ function printUnaryExpression(node) {
   const text = []
   const argument = printExpression(node.argument)
   if (node.prefix) {
-    text.push(`${node.operator}${argument}`)
+    text.push(`${node.operator.match(/[a-z]/) ? `${node.operator} ` : node.operator}${argument}`)
   } else {
-    text.push(`${argument}${node.operator}`)
+    text.push(`${argument}${node.operator.match(/[a-z]/) ? ` ${node.operator}` : node.operator}`)
   }
   return text
 }
