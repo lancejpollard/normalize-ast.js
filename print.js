@@ -249,9 +249,8 @@ function printClassBody(node) {
 
 function printMethodDefinition(node) {
   const key = printExpression(node.key)
-  const value = printFunctionDeclaration(node.value)
-  const text = [`${key}: `]
-  text.push(value.join('\n'))
+  const value = printFunctionDeclaration(node.value, true)
+  const text = (`${key}` + value.join('\n')).split('\n')
   return text
 }
 
@@ -419,7 +418,7 @@ function printArrowFunctionExpression(node) {
   return text
 }
 
-function printFunctionDeclaration(node) {
+function printFunctionDeclaration(node, omitKeyword) {
   const text = []
   const id = node.id ? ` ${printExpression(node.id)}` : ''
   const params = node.params.map(param => printExpression(param))
@@ -428,7 +427,8 @@ function printFunctionDeclaration(node) {
     .join('\n')
     .split(/\n/)
     .map(line => `  ${line}`)
-  text.push(`function${id}(${params.join(', ')}) {`)
+  const keyword = omitKeyword ? '' : 'function'
+  text.push(`${keyword}${id}(${params.join(', ')}) {`)
   text.push(...body)
   text.push(`}`)
   return text
@@ -771,6 +771,10 @@ function printExpression(node) {
 
     FunctionDeclaration() {
       return printFunctionDeclaration(node).join('\n')
+    },
+
+    ClassDeclaration() {
+      return printClassDeclaration(node).join('\n')
     }
   }
 

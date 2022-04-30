@@ -174,11 +174,14 @@ function createClassDeclaration(id, superClass, body) {
   }
 }
 
-function createMethodDefinition(key, value) {
+function createMethodDefinition(key, value, kind, computed = false, isStatic = false) {
   return {
     type: 'MethodDefinition',
     key,
-    value
+    value,
+    kind,
+    computed,
+    static: isStatic
   }
 }
 
